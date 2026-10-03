@@ -506,8 +506,8 @@ const legend = Object.keys(TYPES).map((k) => `<li><i class="g t-${k}" aria-hidde
   link: 'continuă în alt capitol al ghidului',
 }[k]}</li>`).join('');
 const INTRO = `
-  <div class="ph"><div class="crumbs">Partea II · înainte de încheierea contractului</div><h2>Cum citești harta?</h2></div>
-  <p class="sum">Harta reflectă o parte semnificativă dintre deciziile posibile într-un litigiu din domeniul achizițiilor publice, de la publicarea anunțului de participare și până la hotărârea definitivă a Curții de Apel asupra plângerii, revizuirii ori contestației în anulare. Alege orice etapă pentru a te familiariza cu variantele posibile. Căile procedurale ce pot fi urmate, actele procedurale care pot fi formulate, precum și capcanele ce pot apărea vor fi marcate distinctiv, fără ca restul hărții să dispară.</p>
+  <div class="ph"><div class="crumbs">Partea II · înainte de încheierea contractului</div><h2>Cum citești graficul?</h2></div>
+  <p class="sum">Graficul reflectă o parte semnificativă dintre deciziile posibile într-un litigiu din domeniul achizițiilor publice, de la publicarea anunțului de participare și până la hotărârea definitivă a Curții de Apel asupra plângerii, revizuirii ori contestației în anulare. Alege orice etapă pentru a te familiariza cu variantele posibile. Căile procedurale ce pot fi urmate, actele procedurale care pot fi formulate, precum și capcanele ce pot apărea vor fi marcate distinctiv, fără ca restul graficului să dispară.</p>
   <dl class="fields axes">
     <div class="fld"><dt>De la stânga la dreapta</dt><dd>timpul procedurii</dd></div>
     <div class="fld"><dt>De jos în sus</dt><dd>treptele litigiului: procedura de atribuire, CNSC, curtea de apel, căile extraordinare</dd></div>

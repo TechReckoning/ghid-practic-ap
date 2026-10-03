@@ -1,6 +1,6 @@
-# Harta litigiilor în achiziții publice
+# Graficul litigiilor în materia achizițiilor publice
 
-Site static, gratuit, fără cont: o hartă 3D a tuturor deciziilor posibile în litigiile de achiziții publice (Legea 101/2016) și ghidul practic complet.
+Site static, gratuit, fără cont: un grafic 3D al deciziilor posibile în litigiile de achiziții publice (Legea 101/2016) și ghidul practic complet.
 
 ## Structură
 - `harta/src/data.js` — conținutul hărții: etape (NODES), legături (EDGES), trasee (PATHS), sărbători legale (HOLIDAYS).

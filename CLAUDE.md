@@ -1,11 +1,11 @@
-# Harta litigiilor în achiziții publice
+# Graficul litigiilor în materia achizițiilor publice
 
 Note de predare pentru sesiunile Claude care lucrează în acest repository.
 Proprietar: Serban, avocat litigant (Managing Associate). Toată comunicarea și conținutul site-ului sunt în limba română.
 
 ## Ce este
 Site static, gratuit, fără cont, publicat pe Netlify din acest repository (`netlify.toml`: `npm run build`, publică `harta/site`). Are două pagini:
-- **Harta** (`index.html`): o hartă 3D (Three.js) cu toate deciziile posibile în litigiile de achiziții publice de până la încheierea contractului, adică Partea II a ghidului. Nu e un joc, ci o reprezentare completă a ramificațiilor.
+- **Graficul** (`index.html`; în cod și în numele fișierelor se numește încă „harta”): un grafic 3D (Three.js) cu toate deciziile posibile în litigiile de achiziții publice de până la încheierea contractului, adică Partea II a ghidului. Nu e un joc, ci o reprezentare a ramificațiilor. Pe site se spune „graficul”, nu „harta”; excepție face diagrama „Harta căilor de atac” din textul ghidului.
 - **Ghidul** (`ghid.html`): ghidul practic complet al lui Serban, cu cuprins în bara laterală.
 
 Conținutul provine EXCLUSIV din ghidul lui Serban. Nu adăuga reguli juridice din memorie. Orice text nou se citează la secțiunea din ghid și la articol.
