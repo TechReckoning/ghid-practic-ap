@@ -43,12 +43,20 @@ a { color: var(--accent); }
 
 main { padding: 28px 16px 96px; }
 article { max-width: 760px; margin: 0 auto; }
-.hero { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.hero { display: flex; align-items: center; gap: 24px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.portrait { flex: none; width: 132px; height: 132px; border-radius: 50%; object-fit: cover; background: var(--surface-2); border: 1px solid var(--line); }
 .k { font: 500 11px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
 .hero h1 { font: 600 34px/1.15 var(--font-display); letter-spacing: -0.015em; margin: 8px 0 4px; text-wrap: balance; }
 .hero .role { margin: 0; color: var(--muted); }
 h2 { font: 600 22px/1.25 var(--font-display); letter-spacing: -0.01em; margin: 40px 0 10px; }
+h3 { font: 600 18px/1.3 var(--font-display); margin: 28px 0 8px; }
 p { margin: 0 0 12px; max-width: 70ch; }
+ul { margin: 0 0 14px; padding-left: 1.4em; max-width: 70ch; }
+li { margin: 0 0 6px; }
+.facts { margin: 20px 0 0; display: grid; gap: 8px; max-width: 70ch; }
+.facts div { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.facts dt { font: 500 11px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
+.facts dd { margin: 0; }
 .contact { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; max-width: 70ch; }
 .contact li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
 .contact .l { font: 500 11px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
@@ -62,7 +70,9 @@ p { margin: 0 0 12px; max-width: 70ch; }
 @media (max-width: 900px) {
   .brand span { display: none; }
   .hero h1 { font-size: 27px; }
-  .contact li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .contact li, .facts div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .hero { gap: 16px; }
+  .portrait { width: 88px; height: 88px; }
 }
 </style>
 </head>
@@ -74,9 +84,12 @@ p { margin: 0 0 12px; max-width: 70ch; }
 <main>
   <article>
     <header class="hero">
-      <div class="k">Despre autor</div>
-      <h1>Șerban Sârbu</h1>
-      <p class="role">Managing Associate · Țuca Zbârcea &amp; Asociații</p>
+      <img class="portrait" src="serban-sarbu.webp" width="480" height="480" alt="Șerban Sârbu">
+      <div>
+        <div class="k">Despre autor</div>
+        <h1>Șerban Sârbu</h1>
+        <p class="role">Managing Associate · Țuca Zbârcea &amp; Asociații</p>
+      </div>
     </header>
 
     {{BIO}}
