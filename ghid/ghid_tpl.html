@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ghidul litigiilor în achiziții publice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/* Layout: cuprins fix în stânga (sertar pe telefon), text de lectură la ~70 de caractere în dreapta. */
+:root {
+  color-scheme: light;
+  --bg: #E6EAEE; --surface: #F7F9FA; --surface-2: #EDF1F4; --ink: #16202A; --muted: #586572; --line: #C3CCD5; --edge: #7D8A97;
+  --accent: #2446B5; --accent-ink: #FFFFFF; --amber: #B0741A; --green: #1D7656; --red: #BF352E; --violet: #7650AA;
+  --warn-bg: #FBEDEC; --note-bg: #EAEFFA;
+  --font-display: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r: 6px;
+  --cds-text-primary: var(--ink); --cds-text-secondary: var(--muted); --cds-chart-axis: var(--edge); --cds-chart-grid: var(--line);
+  --cds-chart-categorical-1: var(--accent); --cds-chart-categorical-2: var(--amber); --cds-chart-categorical-3: var(--green); --cds-chart-categorical-4: var(--violet);
+  --cds-chart-reference-tint: var(--surface-2); --cds-chart-status-good: var(--green); --cds-chart-status-warning: var(--amber); --cds-chart-status-critical: var(--red);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1318; --surface: #141B22; --surface-2: #1A232C; --ink: #E1E7ED; --muted: #8B98A6; --line: #2A3540; --edge: #6E7C8A;
+    --accent: #87A3FF; --accent-ink: #0E1318; --amber: #E2A443; --green: #4DBE8B; --red: #EF6F67; --violet: #B590EE;
+    --warn-bg: #2A1716; --note-bg: #17203A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1318; --surface: #141B22; --surface-2: #1A232C; --ink: #E1E7ED; --muted: #8B98A6; --line: #2A3540; --edge: #6E7C8A;
+  --accent: #87A3FF; --accent-ink: #0E1318; --amber: #E2A443; --green: #4DBE8B; --red: #EF6F67; --violet: #B590EE;
+  --warn-bg: #2A1716; --note-bg: #17203A; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-padding-top: 76px; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 var(--font-ui); -webkit-text-size-adjust: 100%; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* top bar (shared with the map) */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center; gap: 10px 20px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.brand { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
+.brand b { font: 600 18px/1.2 var(--font-display); }
+.brand span { color: var(--muted); font-size: 12px; }
+.nav { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--surface-2); }
+.nav a { padding: 4px 12px; font-size: 13px; color: var(--ink); text-decoration: none; }
+.nav a[aria-current="page"] { background: var(--ink); color: var(--surface); }
+#toc-open { display: none; border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--r); padding: 4px 10px; font: inherit; font-size: 13px; color: var(--ink); cursor: pointer; }
+
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
+#side { position: sticky; top: 61px; height: calc(100vh - 61px); overflow-y: auto; border-right: 1px solid var(--line); background: var(--surface); padding: 16px 12px 40px 16px; display: flex; flex-direction: column; gap: 10px; }
+.side-h { display: flex; align-items: center; justify-content: space-between; }
+.side-h h2 { font: 500 10.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0; }
+#toc-close { display: none; }
+#q { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 9px; font: inherit; font-size: 13.5px; color: var(--ink); }
+#toc ul { list-style: none; margin: 0; padding: 0; }
+#toc li { margin: 0; }
+#toc .grp { margin-top: 12px; }
+#toc .grp > .row > a { font: 600 14px/1.3 var(--font-display); color: var(--ink); }
+#toc .row { display: flex; align-items: flex-start; gap: 2px; }
+#toc a { display: block; flex: 1; min-width: 0; padding: 4px 8px; border-radius: 4px; color: var(--ink); text-decoration: none; font-size: 13.5px; line-height: 1.35; }
+#toc a:hover { background: var(--surface-2); }
+#toc a.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-weight: 500; }
+#toc a .n { font: 500 11.5px var(--font-mono); color: var(--muted); margin-right: 6px; }
+#toc a.on .n { color: inherit; }
+#toc .sub { padding-left: 14px; border-left: 1px solid var(--line); margin-left: 12px; }
+#toc .sub a { font-size: 13px; }
+#toc .tw-btn { flex: none; width: 24px; height: 25px; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 4px; font-size: 11px; padding: 0; }
+#toc .tw-btn:hover { background: var(--surface-2); color: var(--ink); }
+#toc .tw-btn[aria-expanded="true"] { transform: rotate(90deg); }
+#toc .tw-sp { flex: none; width: 24px; }
+.noresult { font-size: 13px; color: var(--muted); padding: 4px 8px; }
+
+/* article */
+main { min-width: 0; padding: 28px 16px 120px; }
+article { max-width: 760px; margin: 0 auto; }
+.hero { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.hero .k { font: 500 11px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
+.hero h1 { font: 600 34px/1.15 var(--font-display); letter-spacing: -0.015em; margin: 8px 0 10px; text-wrap: balance; }
+.hero p { margin: 0; color: var(--muted); max-width: 62ch; }
+article h2, article h3, article h4, article h5 { font-family: var(--font-display); text-wrap: balance; letter-spacing: -0.01em; position: relative; }
+article h2 { font-size: 28px; line-height: 1.2; margin: 56px 0 12px; font-weight: 600; }
+article h2.part { padding-top: 24px; border-top: 2px solid var(--ink); }
+article h3 { font-size: 22px; line-height: 1.25; margin: 40px 0 10px; font-weight: 600; }
+article h4 { font-size: 18px; line-height: 1.3; margin: 28px 0 8px; font-weight: 600; }
+article h5 { font-size: 16px; line-height: 1.3; margin: 22px 0 6px; font-weight: 600; font-style: italic; }
+.maplink { display: inline-block; margin-left: 10px; vertical-align: middle; font: 500 11.5px/1 var(--font-ui); letter-spacing: 0; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--accent); text-decoration: none; background: var(--surface); }
+.maplink:hover { border-color: var(--accent); }
+article p { margin: 0 0 12px; max-width: 70ch; }
+article ul, article ol { margin: 0 0 14px; padding-left: 1.4em; max-width: 70ch; }
+article li { margin: 0 0 6px; }
+article li > p { margin: 0 0 4px; }
+article li > ul, article li > ol { margin-top: 4px; margin-bottom: 4px; }
+article strong { font-weight: 600; }
+a.xref { font-family: var(--font-mono); font-size: .88em; text-decoration: none; border-bottom: 1px dotted currentColor; }
+.callout { padding: 10px 14px; border-radius: 0 var(--r) var(--r) 0; font-size: 14.5px; }
+.callout.warn { background: var(--warn-bg); border-left: 3px solid var(--red); }
+.callout.warn > strong:first-child { color: var(--red); }
+.callout.note { background: var(--note-bg); border-left: 3px solid var(--accent); }
+blockquote { margin: 0 0 14px; padding: 4px 0 4px 16px; border-left: 2px solid var(--edge); font-family: var(--font-display); font-style: italic; color: var(--muted); max-width: 68ch; }
+blockquote p { margin: 0; }
+.tw { overflow-x: auto; margin: 6px 0 18px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; line-height: 1.45; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); min-width: 9em; }
+th { background: var(--surface-2); font-weight: 600; font-size: 12.5px; }
+tr:last-child td { border-bottom: 0; }
+td p, th p { margin: 0 0 4px; max-width: none; }
+td p:last-child, th p:last-child { margin: 0; }
+td ul, td ol { margin: 0; padding-left: 1.2em; }
+.fig { margin: 10px 0 22px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.fig-svg { overflow-x: auto; }
+.fig-svg svg { display: block; width: 100%; min-width: 560px; height: auto; font-family: var(--font-ui); }
+.fig figcaption { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.disc { margin-top: 48px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+.totop { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: var(--r); padding: 5px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  #toc-open { display: inline-block; }
+  #side { position: fixed; z-index: 40; top: 0; left: 0; bottom: 0; height: auto; width: min(340px, 88vw); transform: translateX(-102%); transition: transform .2s; box-shadow: 0 0 40px rgba(0,0,0,.25); padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+  body.toc-on #side { transform: none; }
+  #toc-close { display: inline-block; border: 1px solid var(--line); background: none; border-radius: var(--r); padding: 2px 9px; font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; }
+  #scrim { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.35); }
+  .brand span { display: none; }
+  html { scroll-padding-top: 116px; }
+  .hero h1 { font-size: 27px; }
+  article h2 { font-size: 24px; }
+  article h3 { font-size: 20px; }
+  .maplink { margin: 6px 0 0; display: table; }
+}
+@media (prefers-reduced-motion: reduce) { #side { transition: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <button type="button" id="toc-open" aria-controls="side" aria-expanded="false">Cuprins</button>
+  <div class="brand"><b>Harta litigiilor în achiziții publice</b><span>Ghid practic și hartă interactivă</span></div>
+  <nav class="nav" aria-label="Secțiuni"><a href="index.html">Harta</a><a href="ghid.html" aria-current="page">Ghidul</a></nav>
+</header>
+<div class="layout">
+  <aside id="side" aria-label="Cuprinsul ghidului">
+    <div class="side-h"><h2>Cuprins</h2><button type="button" id="toc-close">Închide</button></div>
+    <input type="search" id="q" placeholder="Caută o secțiune (ex. cauțiune)" aria-label="Caută în cuprins">
+    <nav id="toc"></nav>
+  </aside>
+  <div id="scrim" hidden></div>
+  <main>
+    <article>
+      <header class="hero">
+        <div class="k">Ghid practic · actualizat la 27.09.2026</div>
+        <h1>Inițiere în litigiile din materia achizițiilor publice</h1>
+        <p>Cadrul normativ, remediile de până la încheierea contractului, litigiile de după semnare și un caz practic în cinci scenarii.</p>
+      </header>
+      {{BODY}}
+      <p class="disc">Material educativ, nu consultanță juridică. Înainte de a folosi ghidul într-un dosar, verificați forma consolidată în vigoare a actelor normative.</p>
+    </article>
+  </main>
+</div>
+<button type="button" class="totop" id="totop" hidden>Sus</button>
+<script>
+(function () {
+  var TOC = {{TOC_JSON}};
+  var MAP = {{MAP_JSON}};
+  var tocEl = document.getElementById('toc');
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function split(t) {
+    var m = t.match(/^((?:IV|III|II|I)(?:\.\d+)+)\s+(.*)$/);
+    return m ? '<span class="n">' + m[1] + '</span>' + esc(m[2]) : esc(t);
+  }
+  // build tree
+  var rootNodes = [], stack = [];
+  TOC.forEach(function (h) {
+    var n = { h: h, kids: [] };
+    while (stack.length && stack[stack.length - 1].h.lv >= h.lv) stack.pop();
+    if (stack.length) stack[stack.length - 1].kids.push(n); else rootNodes.push(n);
+    stack.push(n);
+  });
+  function render(nodes, depth) {
+    return '<ul' + (depth ? ' class="sub" hidden' : '') + '>' + nodes.map(function (n) {
+      var has = n.kids.length && depth >= 1;
+      var row = '<div class="row">' + (depth >= 1 ? (has ? '<button type="button" class="tw-btn" aria-expanded="false" aria-label="Arată subsecțiunile">▶</button>' : '<span class="tw-sp"></span>') : '') +
+        '<a href="#' + n.h.id + '" data-id="' + n.h.id + '">' + split(n.h.t) + '</a></div>';
+      var kids = n.kids.length ? (depth === 0 ? render(n.kids, 1).replace(' hidden', '') : render(n.kids, depth + 1)) : '';
+      return '<li class="' + (depth === 0 ? 'grp' : '') + '" data-id="' + n.h.id + '">' + row + kids + '</li>';
+    }).join('') + '</ul>';
+  }
+  tocEl.innerHTML = render(rootNodes, 0) + '<p class="noresult" hidden>Nicio secțiune găsită.</p>';
+  tocEl.addEventListener('click', function (e) {
+    var b = e.target.closest('.tw-btn');
+    if (b) {
+      var sub = b.parentNode.parentNode.querySelector(':scope > ul');
+      var open = b.getAttribute('aria-expanded') !== 'true';
+      b.setAttribute('aria-expanded', String(open));
+      if (sub) sub.hidden = !open;
+      return;
+    }
+    if (e.target.closest('a')) closeToc();
+  });
+  // map links on headings
+  Object.keys(MAP).forEach(function (sec) {
+    var h = document.getElementById(sec);
+    if (!h) return;
+    var a = document.createElement('a');
+    a.className = 'maplink';
+    a.href = 'index.html#' + MAP[sec];
+    a.textContent = 'Vezi pe hartă';
+    h.appendChild(a);
+  });
+  // scrollspy
+  var links = {};
+  tocEl.querySelectorAll('a[data-id]').forEach(function (a) { links[a.dataset.id] = a; });
+  var heads = TOC.map(function (h) { return document.getElementById(h.id); }).filter(Boolean);
+  var current = null;
+  function setCurrent(id) {
+    if (id === current) return;
+    current = id;
+    tocEl.querySelectorAll('a.on').forEach(function (a) { a.classList.remove('on'); });
+    var a = links[id];
+    if (!a) return;
+    a.classList.add('on');
+    var li = a.closest('li');
+    while (li) {
+      var ul = li.parentNode;
+      if (ul.classList.contains('sub')) {
+        ul.hidden = false;
+        var b = ul.parentNode.querySelector(':scope > .row > .tw-btn');
+        if (b) b.setAttribute('aria-expanded', 'true');
+      }
+      li = ul.parentNode.closest && ul.parentNode.closest('li');
+    }
+    if (!document.body.classList.contains('toc-on') && !q.value) {
+      var r = a.getBoundingClientRect(), s = side.getBoundingClientRect();
+      if (r.top < s.top + 80 || r.bottom > s.bottom - 40) side.scrollTop += r.top - s.top - s.height / 3;
+    }
+  }
+  var ticking = false;
+  function spy() {
+    ticking = false;
+    var y = 90, best = heads[0];
+    for (var i = 0; i < heads.length; i++) { if (heads[i].getBoundingClientRect().top <= y) best = heads[i]; else break; }
+    if (best) setCurrent(best.id);
+    totop.hidden = window.scrollY < 800;
+  }
+  window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(spy); } }, { passive: true });
+  // search
+  var q = document.getElementById('q'), side = document.getElementById('side');
+  function norm(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  q.addEventListener('input', function () {
+    var v = norm(q.value.trim());
+    var any = false;
+    tocEl.querySelectorAll('li').forEach(function (li) {
+      if (!v) { li.hidden = false; return; }
+      var self = norm(li.querySelector(':scope > .row a').textContent).indexOf(v) >= 0;
+      var desc = Array.prototype.some.call(li.querySelectorAll('li'), function (x) { return norm(x.querySelector(':scope > .row a').textContent).indexOf(v) >= 0; });
+      li.hidden = !(self || desc);
+      if (self) any = true;
+      if (desc) { var ul = li.querySelector(':scope > ul'); if (ul) ul.hidden = false; }
+    });
+    tocEl.querySelector('.noresult').hidden = !v || any;
+  });
+  // drawer
+  var openBtn = document.getElementById('toc-open'), scrim = document.getElementById('scrim');
+  function openToc() { document.body.classList.add('toc-on'); scrim.hidden = false; openBtn.setAttribute('aria-expanded', 'true'); var a = tocEl.querySelector('a.on'); if (a) a.scrollIntoView({ block: 'center' }); }
+  function closeToc() { document.body.classList.remove('toc-on'); scrim.hidden = true; openBtn.setAttribute('aria-expanded', 'false'); }
+  openBtn.addEventListener('click', openToc);
+  document.getElementById('toc-close').addEventListener('click', closeToc);
+  scrim.addEventListener('click', closeToc);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeToc(); });
+  var totop = document.getElementById('totop');
+  totop.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  spy();
+  if (location.hash) { var t = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (t) t.scrollIntoView(); }
+})();
+</script>
+</body>
+</html>

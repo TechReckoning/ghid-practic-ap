@@ -1,0 +1,10 @@
+import { build } from 'esbuild';
+import fs from 'fs';
+const r = await build({ entryPoints: ['src/main.js'], bundle: true, minify: true, format: 'iife', write: false, target: 'es2020', legalComments: 'none' });
+let js = r.outputFiles[0].text;
+if (js.includes('</script')) js = js.replace(/<\/script/gi, '<\\/script');
+const page = fs.readFileSync('src/page.html', 'utf8').replace('/*BUNDLE*/', () => js);
+fs.mkdirSync('out', { recursive: true });
+fs.writeFileSync('out/harta.html', page);
+fs.writeFileSync('out/test.html', `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style></head><body>${page}</body></html>`);
+console.log('ok', (page.length/1024).toFixed(0)+'KB');
