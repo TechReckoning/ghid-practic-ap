@@ -1,11 +1,11 @@
 // Arborele de decizii — Partea II (litigii premergătoare încheierii contractului)
 // Sursa: „Ghid practic — Inițiere în litigiile din materia achizițiilor publice”, actualizat la 27.09.2026.
-// lvl: 0 procedura de atribuire · 1 CNSC / tribunal · 2 curtea de apel · 3 căi extraordinare
-// tr: contract (față) · cnsc (mijloc) · jud (spate); dz = decalaj pe adâncime; risc = coboară sub nivel
+// lvl: 0 procedura de atribuire · 1 CNSC · 2 curtea de apel · 3 căi extraordinare
+// tr: contract (față) · cnsc (spate); dz = decalaj pe adâncime; risc = coboară sub nivel
 
 export const LEVELS = [
   { id: 0, name: 'Procedura de atribuire', short: 'Procedura' },
-  { id: 1, name: 'Contestația · CNSC sau tribunal', short: 'Prima treaptă' },
+  { id: 1, name: 'Contestația · CNSC', short: 'Prima treaptă' },
   { id: 2, name: 'Curtea de apel', short: 'Curtea de apel' },
   { id: 3, name: 'Căi extraordinare de atac', short: 'Căi extraordinare' },
 ];
@@ -13,7 +13,6 @@ export const LEVELS = [
 export const TRACKS = {
   contract: { z: 7.5, name: 'Încheierea contractului' },
   cnsc: { z: 0, name: 'Calea CNSC' },
-  jud: { z: -8, name: 'Calea judiciară' },
 };
 
 export const ROLES = {
@@ -48,11 +47,12 @@ export const NODES = [
   {
     id: 'd_doc', type: 'decizie', lvl: 0, tr: 'cnsc', col: 1.5, roles: ['ofertant'],
     t: 'Documentația pare restrictivă sau neclară?', s: 'Atac documentația?',
-    sum: 'Operatorul economic interesat decide dacă atacă documentația înainte de data-limită de depunere a ofertelor. Exemple: cerințe de calificare restrictive, specificații tehnice sau factori de evaluare discriminatori, documentație neclară.',
+    sum: 'Operatorul economic interesat decide dacă atacă documentația de atribuire înainte de data-limită de depunere a ofertelor. Exemple: cerințe de calificare restrictive, specificații tehnice sau factori de evaluare discriminatori, documentație neclară.',
     f: [
-      ['Momentul', 'Termenul curge de la publicarea documentației în SEAP. Un client care consideră o cerință restrictivă trebuie să o conteste imediat.'],
+      ['Momentul', 'Termenul curge de la data publicării documentației de atribuire în SEAP ori de la data comunicării acesteia, în cazul procedurilor de atribuire desfășurate fără publicare. Un operator economic care consideră o cerință nelegală trebuie să o conteste imediat.'],
       ['Calitatea', 'Contestatorul acționează ca operator economic interesat, pentru că nu a depus încă ofertă.'],
       ['Alegerea căii', 'Calea CNSC: fără taxă, cu cauțiune. Calea judiciară: taxă de timbru de 2% din valoarea estimată. Ghidul recomandă calea CNSC.'],
+      ['Contestația și oferta', 'Operatorul economic interesat poate contesta doar documentația de atribuire, doar răspunsul la solicitarea de clarificări privind documentația sau pe amândouă și poate, totodată, să depună ofertă.'],
     ],
     ref: ['II.2', 'II.2.2', 'II.1.2'], art: 'art. 8 alin. 2 L101',
   },
@@ -61,6 +61,35 @@ export const NODES = [
     t: 'Critici la documentație invocate abia la rezultat', s: 'Critici tardive',
     sum: 'Sunt respinse ca tardive: termenul pentru criticile privind documentația a curs de la publicarea ei.',
     ref: ['II.2.2'], art: 'art. 8 L101',
+  },
+  {
+    id: 'p_clar', type: 'moment', lvl: 0, tr: 'cnsc', col: 1.9, dz: -5, roles: ['ofertant', 'ac'],
+    t: 'AC emite răspuns la solicitarea de clarificări privind documentația de atribuire', s: 'Răspuns la clarificări',
+    sum: 'AC răspunde, în SEAP, la solicitarea de clarificări privind documentația de atribuire. Dacă răspunsul menține sau modifică o cerință, el poate fi atacat separat.',
+    f: [
+      ['Răspunsul AC', 'Cu cel puțin 10 zile înainte de data-limită de depunere a ofertelor (art. 160–161 L98). Identitatea celui care a cerut clarificarea rămâne protejată.'],
+      ['Termenul de contestare', '10 zile peste pragul UE și 7 zile sub prag, de la publicarea răspunsului în SEAP ori de la comunicarea lui, în cazul procedurilor de atribuire desfășurate fără publicare (art. 8 alin. 1 lit. a sau b, în funcție de prag).'],
+    ],
+    warn: 'Clarificarea e opțională. Solicitarea de clarificări nu oprește termenul de contestare a documentației de atribuire.',
+    calc: { zile: [10, 7], de: 'Data publicării răspunsului în SEAP' },
+    ref: ['IV.2', 'I.3.1'], art: 'art. 160–161 L98; art. 8 alin. 1 lit. a–b L101',
+  },
+  {
+    id: 'd_clar', type: 'decizie', lvl: 0, tr: 'cnsc', col: 2.5, dz: -5, roles: ['ofertant'],
+    t: 'Răspunsul la clarificări pare nelegal?', s: 'Atac răspunsul?',
+    sum: 'Operatorul economic interesat decide dacă atacă răspunsul AC la solicitarea de clarificări privind documentația de atribuire.',
+    f: [
+      ['Ce poate contesta', 'Doar răspunsul la solicitarea de clarificări sau răspunsul împreună cu documentația de atribuire, dacă termenul de contestare a documentației nu a expirat.'],
+      ['Momentul', 'Termenul curge de la publicarea răspunsului în SEAP ori de la comunicarea lui, în cazul procedurilor de atribuire desfășurate fără publicare: 10 zile peste prag și 7 zile sub prag.'],
+      ['Contestația și oferta', 'Operatorul economic interesat poate contesta doar documentația de atribuire, doar răspunsul la solicitarea de clarificări privind documentația sau pe amândouă și poate, totodată, să depună ofertă.'],
+    ],
+    ref: ['IV.2', 'II.2.2'], art: 'art. 8 alin. 1 lit. a–b L101',
+  },
+  {
+    id: 'r_tardiv_clar', type: 'risc', lvl: 0, tr: 'cnsc', col: 2.4, dz: -8.5, roles: ['ofertant'],
+    t: 'Critici la răspunsul la clarificări invocate abia la rezultat', s: 'Critici tardive · clarificări',
+    sum: 'Sunt respinse ca tardive: termenul pentru criticile privind răspunsul la solicitarea de clarificări a curs de la publicarea sau comunicarea lui.',
+    ref: ['IV.2', 'II.2.2'], art: 'art. 8 alin. 1 L101',
   },
   {
     id: 'p_depunere', type: 'moment', lvl: 0, tr: 'cnsc', col: 3, roles: ALL,
@@ -224,6 +253,8 @@ export const NODES = [
     f: [
       ['Competența', 'CNSC, complet de trei membri, același pentru toate contestațiile din etapa de până la depunerea ofertelor (art. 17 alin. 1 lit. a).'],
       ['Termenul', '10 zile peste pragul UE și 7 zile sub prag, de la publicarea documentației în SEAP sau de la comunicare, dacă procedura se desfășoară fără publicare (art. 8 alin. 2).'],
+      ['Răspunsul la clarificări', 'Se poate contesta separat sau împreună cu documentația, dacă aceasta mai este în termen: 10 zile peste prag și 7 zile sub prag, de la publicarea răspunsului în SEAP ori de la comunicarea lui, în cazul procedurilor desfășurate fără publicare (art. 8 alin. 1 lit. a sau b, în funcție de prag).'],
+      ['Contestația și oferta', 'Contestația nu împiedică depunerea ofertei: operatorul economic interesat poate contesta și, totodată, să depună ofertă.'],
       ['Cauțiunea', '2% din valoarea estimată, max. 35.000 lei sub prag și 220.000 lei peste prag, în cel mult 5 zile de la sesizarea CNSC (art. 61¹). Fără taxă de timbru.'],
       ['Conținutul', 'Art. 10: datele contestatorului, AC, obiectul contractului și anunțul din SEAP, actul atacat precis individualizat, ce se cere, motivarea în fapt și în drept, probele, semnătura.'],
       ['Depunerea', 'La CNSC și, în același termen, la AC, sub sancțiunea tardivității (art. 16 alin. 1). Recomandare: cu 1–2 zile înainte de expirarea termenului.'],
@@ -507,49 +538,22 @@ export const NODES = [
     sum: 'Nu suspendă de drept executarea hotărârii și nu blochează încheierea contractului. Instanța poate suspenda executarea numai sub condiția constituirii unei cauțiuni (art. 507 și 512 C.pr.civ.).',
     ref: ['II.5'], art: 'art. 507, 512 C.pr.civ.',
   },
-
-  // ───────── Calea judiciară (pista din spate)
-  {
-    id: 't_cont', type: 'remediu', lvl: 1, tr: 'jud', col: 4.6, roles: ['ofertant'],
-    t: 'Contestație la tribunal', s: 'Contestație · tribunal',
-    sum: 'Calea judiciară, alternativă la CNSC. Ghidul nu o folosește: diferența de cost este decisivă și calea judiciară nu aduce, de regulă, un avantaj care să justifice riscul.',
-    f: [
-      ['Termenul', '10 zile peste prag și 7 zile sub prag (art. 49).'],
-      ['Costul', 'Taxă judiciară de timbru de 2% din valoarea estimată, max. 100.000.000 lei; fără cauțiune. Taxa se recuperează doar dacă operatorul câștigă. La o valoare estimată de 700.000.000 lei, taxa ar fi 14.000.000 lei.'],
-      ['Procedura', 'Judiciară, cu citarea părților; soluționare în max. 45 de zile de la sesizare.'],
-    ],
-    calc: { zile: [10, 7], de: 'Data luării la cunoștință a actului' },
-    ref: ['II.1.2'], art: 'art. 49 L101',
-  },
-  {
-    id: 't_sent', type: 'moment', lvl: 1, tr: 'jud', col: 10.2, roles: ALL,
-    t: 'Sentința tribunalului', s: 'Sentința',
-    sum: 'Pronunțată în max. 45 de zile de la sesizare. După o sentință de menținere, AC trebuie să semneze după termenul de așteptare, chiar dacă se declară recurs (art. 49 alin. 6).',
-    ref: ['II.1.2', 'II.7.2'], art: 'art. 49 L101',
-  },
-  {
-    id: 't_recurs', type: 'remediu', lvl: 2, tr: 'jud', col: 12.8, roles: ALL,
-    t: 'Recurs la curtea de apel', s: 'Recurs',
-    sum: 'Se declară în 10 zile (art. 51). Se aplică, în completare, regulile recursului din C.pr.civ.',
-    calc: { zile: [10], de: 'Data comunicării sentinței' },
-    ref: ['II.1.2'], art: 'art. 51 L101',
-  },
-  {
-    id: 't_def', type: 'moment', lvl: 2, tr: 'jud', col: 16.9, roles: ALL,
-    t: 'Decizie definitivă în recurs', s: 'Decizie definitivă',
-    sum: 'Hotărârea curții de apel asupra recursului este definitivă (art. 51 alin. 6) și poate fi atacată numai cu contestație în anulare sau cu revizuire.',
-    ref: ['II.5'], art: 'art. 51 alin. 6 L101',
-  },
 ];
 
 // kind: flow (urmează) · choice (alegere) · risk (capcană) · loop (revenire) · out (Partea III)
+// al cincilea element, opțional: eticheta scurtă afișată pe hartă; fișa etapei arată eticheta completă
 export const EDGES = [
   ['p_anunt', 'd_doc', 'Analizezi documentația', 'flow'],
   ['d_doc', 'c_doc', 'Da, contest la CNSC', 'choice'],
-  ['d_doc', 't_cont', 'Da, contest la tribunal', 'choice'],
   ['d_doc', 'p_depunere', 'Nu, depun ofertă', 'choice'],
-  ['d_doc', 'r_tardiv', 'Nu contest acum, dar critic la rezultat', 'risk'],
+  ['d_doc', 'p_clar', 'Solicit clarificări privind documentația de atribuire', 'choice', 'Solicit clarificări'],
+  ['d_doc', 'r_tardiv', 'Nu contest acum, dar voi formula critici cu privire la documentație odată cu contestația împotriva rezultatului procedurii', 'risk', 'Nu contest acum, dar critic la rezultat'],
+  ['p_clar', 'd_clar', 'Analizezi răspunsul', 'flow'],
+  ['d_clar', 'c_doc', 'Da, contest la CNSC răspunsul (și documentația, dacă mai e în termen)', 'choice', 'Da, contest la CNSC'],
+  ['d_clar', 'p_depunere', 'Nu contest, depun ofertă', 'choice'],
+  ['d_clar', 'r_tardiv_clar', 'Nu contest acum, dar voi formula critici cu privire la răspunsul la solicitarea de clarificări odată cu contestația împotriva rezultatului procedurii', 'risk', 'Nu contest acum, dar critic la rezultat'],
   ['c_doc', 'c_susp', 'Cer și suspendarea procedurii', 'choice'],
+  ['c_doc', 'p_depunere', 'Depun oferta în paralel', 'flow'],
   ['c_doc', 'c_ac', 'AC primește contestația', 'flow'],
   ['c_doc', 'i_interv', 'Alți operatori pot interveni', 'flow'],
   ['c_doc', 'r_caut', 'Nu constitui cauțiunea în 5 zile', 'risk'],
@@ -564,7 +568,6 @@ export const EDGES = [
   ['p_rezultat', 'k_asteptare', 'Începe termenul de așteptare', 'flow'],
   ['a_acces', 'd_rez', 'Analizez ofertele concurenților', 'flow'],
   ['d_rez', 'c_rez', 'Da, contest la CNSC', 'choice'],
-  ['d_rez', 't_cont', 'Da, contest la tribunal', 'choice'],
   ['d_rez', 'k_liber', 'Nu contest', 'choice'],
   ['d_castig', 'i_interv', 'Intervin în contestația concurentului', 'choice'],
   ['d_castig', 'r_interv', 'Ratez termenul de intervenție', 'risk'],
@@ -632,24 +635,14 @@ export const EDGES = [
   ['k_nul', 'p3', 'Acțiunea în nulitate (III.2)', 'out'],
   ['k_desp', 'p3', 'Acțiunea în despăgubiri (III.3)', 'out'],
   ['k_null', 'p3', 'Acțiunea în nulitate (III.2)', 'out'],
-  ['t_cont', 't_sent', 'Tribunalul judecă în max. 45 de zile', 'flow'],
-  ['t_cont', 'k_blocaj', 'Semnarea se blochează', 'flow'],
-  ['t_cont', 'r_dubla', 'Atac același act și la CNSC', 'risk'],
-  ['t_sent', 'k_obligatie', 'Menținere', 'flow'],
-  ['t_sent', 'a_exec', 'Admitere', 'flow'],
-  ['t_sent', 't_recurs', 'Recurs în 10 zile', 'choice'],
-  ['t_recurs', 't_def', 'Curtea de apel se pronunță', 'flow'],
-  ['t_def', 'x_ca', 'Contestație în anulare', 'choice'],
-  ['t_def', 'x_rev', 'Revizuire', 'choice'],
-  ['t_def', 'k_schimbare', 'Contractul fusese deja semnat', 'flow'],
 ];
 
 export const PATHS = [
   { id: 'doc', name: 'Atac documentația', nodes: ['p_anunt', 'd_doc', 'c_doc', 'c_susp', 'c_proc', 'c_dec', 's_anul', 'a_exec', 'p_depunere'] },
+  { id: 'clar', name: 'Atac răspunsul la clarificări', nodes: ['p_anunt', 'd_doc', 'p_clar', 'd_clar', 'c_doc', 'c_susp', 'c_proc', 'c_dec', 's_anul', 'a_exec', 'p_depunere'] },
   { id: 'rez', name: 'Pierd și atac rezultatul', nodes: ['p_rezultat', 'a_acces', 'd_rez', 'c_rez', 'c_ac', 'c_proc', 'c_dec', 's_nef', 'd_pl', 'pl', 'pl_susp', 'pl_proc', 'pl_mod', 'a_exec', 'k_noua'] },
   { id: 'cast', name: 'Câștig și apăr rezultatul', nodes: ['p_rezultat', 'd_castig', 'i_interv', 'c_proc', 'c_dec', 's_anul', 'd_pl', 'pl', 'pl_proc', 'pl_resp', 'pl_def'] },
   { id: 'contr', name: 'Când se poate semna contractul', nodes: ['p_rezultat', 'k_asteptare', 'k_blocaj', 'c_dec', 's_nef', 'k_obligatie', 'k_semnat', 'k_schimbare', 'k_desp', 'p3'] },
-  { id: 'jud', name: 'Calea judiciară', nodes: ['d_rez', 't_cont', 't_sent', 't_recurs', 't_def', 'x_rev'] },
 ];
 
 // Sărbători legale (RO), pentru calculatorul de termene

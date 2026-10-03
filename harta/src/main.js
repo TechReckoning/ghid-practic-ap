@@ -5,7 +5,7 @@ import { UPDATED } from './site.js';
 
 // ───────────────────────── model
 const byId = Object.fromEntries(NODES.map((n) => [n.id, n]));
-const edges = EDGES.map(([from, to, label, kind], i) => ({ i, from, to, label, kind }));
+const edges = EDGES.map(([from, to, label, kind, short], i) => ({ i, from, to, label, kind, short: short || label }));
 const outE = {}, inE = {};
 NODES.forEach((n) => { outE[n.id] = []; inE[n.id] = []; });
 edges.forEach((e) => { outE[e.from].push(e); inE[e.to].push(e); });
@@ -17,7 +17,7 @@ function posOf(n) {
 NODES.forEach((n) => { n.pos = posOf(n); });
 
 const state = {
-  sel: null, role: 'all', showJud: true, showRisk: true, view: '3d',
+  sel: null, role: 'all', showRisk: true, view: '3d',
   path: null, step: 0,
 };
 
@@ -75,7 +75,7 @@ function fitPos(k) {
 
 // floors
 const xmin = (-1.2 - X0) * SX, xmax = (19.4 - X0) * SX;
-const zmin = -11 * ZS, zmax = 11.5 * ZS;
+const zmin = -9.5 * ZS, zmax = 11.5 * ZS;
 const floors = [];
 LEVELS.forEach((L) => {
   const w = xmax - xmin, d = zmax - zmin;
@@ -201,7 +201,7 @@ const floorLabels = LEVELS.map((L, i) => {
   return { el: d, p: new THREE.Vector3(xmin + 0.6, floors[i].y + 0.05, zmin + 0.4) };
 });
 const trackLabels = [
-  ['contract', 0], ['cnsc', 0], ['jud', 1],
+  ['contract', 0], ['cnsc', 0],
 ].map(([k, lvl]) => {
   const d = document.createElement('div');
   d.className = 'tlbl';
@@ -237,7 +237,6 @@ function reach(start, dirMap, key) {
   return seen;
 }
 function visibleNode(n) {
-  if (!state.showJud && n.tr === 'jud') return false;
   if (!state.showRisk && n.type === 'risc') return false;
   return true;
 }
@@ -312,7 +311,7 @@ function applyEmphasis() {
   } else if (state.sel) list = outE[state.sel];
   list.filter((e) => visibleNode(byId[e.to])).forEach((e, k) => {
     const el = edgeLabel(k);
-    el.textContent = e.label;
+    el.textContent = e.short;
     el.className = `elbl k-${e.kind}`;
     el.hidden = false;
     activeEdgeLabels.push({ el, p: e.curve.getPointAt(e.kind === 'risk' ? 0.72 : 0.55) });
@@ -374,7 +373,7 @@ function renderPanel() {
   }
   const n = byId[state.sel];
   const lvl = LEVELS[n.lvl].name;
-  const where = n.tr === 'contract' ? TRACKS.contract.name : n.tr === 'jud' ? `${TRACKS.jud.name} · ${lvl}` : lvl;
+  const where = n.tr === 'contract' ? TRACKS.contract.name : lvl;
   const roles = n.roles.length === 3 ? '' : `<p class="roles">${n.roles.map((r) => `<span>${ROLES[r]}</span>`).join('')}</p>`;
   const fields = (n.f || []).map(([k, v]) => `<div class="fld"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
   const nxt = outE[n.id].map((e) => edgeBtn(e, e.to)).join('');
@@ -443,7 +442,6 @@ function startPath(id) {
   if (!id) { exitPath(true); return; }
   state.path = id;
   state.step = 0;
-  if (!state.showJud && id === 'jud') { state.showJud = true; $('#t-jud').checked = true; }
   goStep(0);
 }
 function exitPath(rerender) {
@@ -512,8 +510,8 @@ const INTRO = `
   <p class="sum">Harta reflectă o parte semnificativă dintre deciziile posibile într-un litigiu din domeniul achizițiilor publice, de la publicarea anunțului de participare și până la hotărârea definitivă a Curții de Apel asupra plângerii, revizuirii ori contestației în anulare. Alege orice etapă pentru a te familiariza cu variantele posibile. Căile procedurale ce pot fi urmate, actele procedurale care pot fi formulate, precum și capcanele ce pot apărea vor fi marcate distinctiv, fără ca restul hărții să dispară.</p>
   <dl class="fields axes">
     <div class="fld"><dt>De la stânga la dreapta</dt><dd>timpul procedurii</dd></div>
-    <div class="fld"><dt>De jos în sus</dt><dd>treptele litigiului: procedura de atribuire, CNSC sau tribunalul, curtea de apel, căile extraordinare</dd></div>
-    <div class="fld"><dt>Din față spre spate</dt><dd>încheierea contractului, calea CNSC, calea judiciară</dd></div>
+    <div class="fld"><dt>De jos în sus</dt><dd>treptele litigiului: procedura de atribuire, CNSC, curtea de apel, căile extraordinare</dd></div>
+    <div class="fld"><dt>Din față spre spate</dt><dd>încheierea contractului, calea CNSC</dd></div>
   </dl>
   <h3>Legenda</h3>
   <ul class="legend">${legend}</ul>
@@ -532,7 +530,6 @@ function renderList() {
     { k: 'Încheierea contractului', f: (n) => n.tr === 'contract' },
     { k: 'Contestația la CNSC', f: (n) => n.lvl === 1 && n.tr === 'cnsc' },
     { k: 'Curtea de apel · plângerea', f: (n) => n.lvl === 2 && n.tr === 'cnsc' },
-    { k: 'Calea judiciară', f: (n) => n.tr === 'jud' },
     { k: 'Căi extraordinare de atac', f: (n) => n.lvl === 3 },
   ];
   const html = groups.map((g) => {
@@ -590,7 +587,6 @@ window.addEventListener('keydown', (ev) => {
 
 $('#role').addEventListener('change', (e) => { state.role = e.target.value; applyEmphasis(); if (state.view === 'list') renderList(); });
 $('#path').addEventListener('change', (e) => startPath(e.target.value));
-$('#t-jud').addEventListener('change', (e) => { state.showJud = e.target.checked; trackLabels[2].el.hidden = !state.showJud; applyEmphasis(); renderPanel(); if (state.view === 'list') renderList(); });
 $('#t-risk').addEventListener('change', (e) => { state.showRisk = e.target.checked; applyEmphasis(); renderPanel(); if (state.view === 'list') renderList(); });
 document.querySelectorAll('[data-cam]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.cam)));
 document.querySelectorAll('[name="view"]').forEach((r) => r.addEventListener('change', (e) => setMode(e.target.value)));

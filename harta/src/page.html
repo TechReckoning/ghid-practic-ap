@@ -95,7 +95,7 @@ body[data-view="list"] #list { display: block; }
 .flbl { font: 600 13px/1.2 var(--font-display); color: var(--ink); opacity: .78; translate: 0 -105%; }
 .flbl span { display: block; font: 500 10px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .tlbl { font: 500 10px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); translate: 0 -50%; }
-.elbl { position: absolute; left: 0; top: 0; translate: -50% -100%; pointer-events: none; font-size: 11px; font-style: italic; background: var(--surface); color: var(--accent); border-radius: 3px; padding: 1px 6px; white-space: nowrap; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
+.elbl { position: absolute; left: 0; top: 0; translate: -50% -100%; pointer-events: none; font-size: 11px; font-style: italic; background: var(--surface); color: var(--accent); border-radius: 3px; padding: 1px 6px; width: max-content; max-width: 240px; text-align: center; line-height: 1.35; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
 .elbl.k-risk { color: var(--c-risc); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-risc) 30%, transparent); }
 
 .cams { position: absolute; left: 16px; bottom: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
@@ -233,7 +233,6 @@ body[data-view="list"] #list { display: block; }
     <label class="fl" for="path">Traseu
       <select id="path"><option value="">Fără traseu</option></select>
     </label>
-    <label class="tg"><input type="checkbox" id="t-jud" checked> Calea judiciară</label>
     <label class="tg"><input type="checkbox" id="t-risk" checked> Capcane</label>
   </div>
 </header>
