@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { NODES } from './src/data.js';
+import { UPDATED } from './src/site.js';
 const G = '../ghid/';
 const toc = fs.readFileSync(G + 'toc.json', 'utf8');
 const body = fs.readFileSync(G + 'body.html', 'utf8');
@@ -11,6 +12,6 @@ const map = {};
   map[k] = n.id;
 }));
 const out = fs.readFileSync(G + 'ghid_tpl.html', 'utf8')
-  .replace('{{TOC_JSON}}', () => toc).replace('{{MAP_JSON}}', () => JSON.stringify(map)).replace('{{BODY}}', () => body);
+  .replace('{{TOC_JSON}}', () => toc).replace('{{MAP_JSON}}', () => JSON.stringify(map)).replace('{{BODY}}', () => body).replace('{{UPDATED}}', UPDATED);
 fs.writeFileSync('out/ghid.html', out);
 console.log('ghid', (out.length / 1024).toFixed(0) + 'KB', Object.keys(map).length, 'map links');

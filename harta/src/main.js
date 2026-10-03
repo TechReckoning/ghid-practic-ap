@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LEVELS, TRACKS, ROLES, TYPES, NODES, EDGES, PATHS, HOLIDAYS } from './data.js';
+import { UPDATED } from './site.js';
 
 // ───────────────────────── model
 const byId = Object.fromEntries(NODES.map((n) => [n.id, n]));
@@ -522,7 +523,7 @@ const INTRO = `
   </ul>
   <h3>Abrevieri</h3>
   <p class="abbr"><b>AC</b> autoritatea contractantă · <b>CNSC</b> Consiliul Național de Soluționare a Contestațiilor · <b>SEAP</b> Sistemul electronic de achiziții publice · <b>L101</b> Legea nr. 101/2016 · <b>L98</b> Legea nr. 98/2016 · <b>pragul UE</b> pragurile valorice de la care se aplică regimul „peste prag”</p>
-  <p class="disc">Material educativ, nu consultanță juridică. Conținutul provine din „Ghid practic — Inițiere în litigiile din materia achizițiilor publice”, actualizat la 27.09.2026. Înainte de a-l folosi într-un dosar, verificați forma consolidată în vigoare a actelor normative.</p>`;
+  <p class="disc">Material educativ, nu consultanță juridică. Conținutul provine din „Ghid practic — Inițiere în litigiile din materia achizițiilor publice”, actualizat la ${UPDATED}. Înainte de a-l folosi într-un dosar, verificați forma consolidată în vigoare a actelor normative.</p>`;
 
 // ───────────────────────── list view
 function renderList() {
