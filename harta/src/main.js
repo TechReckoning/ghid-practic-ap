@@ -75,7 +75,7 @@ function fitPos(k) {
 
 // floors
 const xmin = (-1.2 - X0) * SX, xmax = (19.4 - X0) * SX;
-const zmin = -9.5 * ZS, zmax = 11.5 * ZS;
+const zmin = -12 * ZS, zmax = 11.5 * ZS;
 const floors = [];
 LEVELS.forEach((L) => {
   const w = xmax - xmin, d = zmax - zmin;

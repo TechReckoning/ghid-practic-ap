@@ -47,7 +47,7 @@ Sursa este documentul Claude Docs „Ghid practic — Litigiile în materia achi
 
 ## Stadiu (3.10.2026)
 Făcut:
-- harta pentru Partea II (54 de etape, 92 de legături, 5 trasee, calculator de termene, filtru după rol, vedere listă), inclusiv ramura solicitării de clarificări privind documentația;
+- harta pentru Partea II (61 de etape, 106 legături, 6 trasee, calculator de termene, filtru după rol, vedere listă), inclusiv ramura solicitării de clarificări privind documentația și ramura solicitării de clarificări din evaluare (art. 209 L98; IV.3);
 - calea judiciară (tribunal, recurs) a fost scoasă din hartă la cererea lui Serban: nu e de interes practic pentru un avocat la început de drum;
 - pagina „Despre” (prezentarea lui Serban, data actualizării, contact); data actualizării se setează o singură dată, în `harta/src/site.js`;
 - pagina Ghidul, completă (Părțile I–IV și anexele), cu cele 8 diagrame;
