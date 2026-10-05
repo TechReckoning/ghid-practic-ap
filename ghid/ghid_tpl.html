@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap">
+<script>
+// Linkurile vechi către grafic (/#<etapă>) duc acum la ghid: le trimitem mai departe la grafic.
+(function () { var NODE_IDS = {{NODE_IDS}}; var h = decodeURIComponent(location.hash.slice(1)); if (NODE_IDS.indexOf(h) >= 0) location.replace('grafic.html#' + h); })();
+</script>
 <style>
 /* Layout: cuprins fix în stânga (sertar pe telefon), text de lectură la ~70 de caractere în dreapta. */
 :root {
@@ -139,7 +143,7 @@ td ul, td ol { margin: 0; padding-left: 1.2em; }
 <header class="bar">
   <button type="button" id="toc-open" aria-controls="side" aria-expanded="false">Cuprins</button>
   <div class="brand"><b>Graficul litigiilor în materia achizițiilor publice</b><span>Ghid practic și grafic interactiv</span></div>
-  <nav class="nav" aria-label="Secțiuni"><a href="index.html">Graficul</a><a href="ghid.html" aria-current="page">Ghidul</a><a href="despre.html">Despre</a></nav>
+  <nav class="nav" aria-label="Secțiuni"><a href="./" aria-current="page">Ghidul</a><a href="grafic.html">Graficul</a><a href="despre.html">Despre</a></nav>
 </header>
 <div class="layout">
   <aside id="side" aria-label="Cuprinsul ghidului">
@@ -206,7 +210,7 @@ td ul, td ol { margin: 0; padding-left: 1.2em; }
     if (!h) return;
     var a = document.createElement('a');
     a.className = 'maplink';
-    a.href = 'index.html#' + MAP[sec];
+    a.href = 'grafic.html#' + MAP[sec];
     a.textContent = 'Vezi pe grafic';
     h.appendChild(a);
   });

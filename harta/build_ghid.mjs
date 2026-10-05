@@ -12,6 +12,6 @@ const map = {};
   map[k] = n.id;
 }));
 const out = fs.readFileSync(G + 'ghid_tpl.html', 'utf8')
-  .replace('{{TOC_JSON}}', () => toc).replace('{{MAP_JSON}}', () => JSON.stringify(map)).replace('{{BODY}}', () => body).replace('{{UPDATED}}', UPDATED);
+  .replace('{{TOC_JSON}}', () => toc).replace('{{MAP_JSON}}', () => JSON.stringify(map)).replace('{{BODY}}', () => body).replace('{{UPDATED}}', UPDATED).replace('{{NODE_IDS}}', () => JSON.stringify(NODES.map((n) => n.id)));
 fs.writeFileSync('out/ghid.html', out);
 console.log('ghid', (out.length / 1024).toFixed(0) + 'KB', Object.keys(map).length, 'map links');

@@ -391,7 +391,7 @@ function renderPanel() {
     ${n.calc ? calcHTML(n) : ''}
     ${nxt ? `<h3>Ce urmează</h3><ul class="edges">${nxt}</ul>` : ''}
     ${prv ? `<h3>Cum ajungi aici</h3><ul class="edges prev">${prv}</ul>` : ''}
-    <p class="refs"><span>Ghid ${n.ref.map((r) => `<a href="ghid.html#${refAnchor(r)}">${esc(r)}</a>`).join(' · ')}</span>${n.art ? `<span>${esc(n.art)}</span>` : ''}</p>`;
+    <p class="refs"><span>Ghid ${n.ref.map((r) => `<a href="./#${refAnchor(r)}">${esc(r)}</a>`).join(' · ')}</span>${n.art ? `<span>${esc(n.art)}</span>` : ''}</p>`;
   panelBody.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => select(b.dataset.go, { fly: true })));
   $('#close-node').addEventListener('click', () => select(null));
   bindPathBar();

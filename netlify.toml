@@ -2,6 +2,13 @@
   command = "npm run build"
   publish = "harta/site"
 
+# Ghidul a devenit pagina principală: adresa veche a ghidului duce la „/”.
+# Browserul păstrează fragmentul (#II.2.4) la redirecționare.
+[[redirects]]
+  from = "/ghid.html"
+  to = "/"
+  status = 301
+
 [[headers]]
   for = "/fonts/*"
   [headers.values]
