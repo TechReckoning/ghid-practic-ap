@@ -6,19 +6,20 @@ Proprietar: Serban, avocat litigant (Managing Associate). Toată comunicarea și
 ## Ce este
 Site static, gratuit, fără cont, publicat pe Netlify din acest repository (`netlify.toml`: `npm run build`, publică `harta/site`). Are trei pagini, în ordinea din bara de sus: Ghidul, Graficul, Despre.
 - **Ghidul** (`index.html`, pagina principală; adresa veche `ghid.html` e redirecționată spre „/” în `netlify.toml`): ghidul practic complet al lui Serban, cu cuprins în bara laterală. Dacă adresa are un fragment care e id de etapă (`/#d_doc`, din linkurile vechi spre grafic), pagina trimite automat la `grafic.html#d_doc`.
-- **Graficul** (`grafic.html`; în cod și în numele fișierelor se numește încă „harta”): un grafic 3D (Three.js) cu toate deciziile posibile în litigiile de achiziții publice de până la încheierea contractului, adică Partea II a ghidului. Nu e un joc, ci o reprezentare a ramificațiilor. Pe site se spune „graficul”, nu „harta”; excepție face diagrama „Harta căilor de atac” din textul ghidului.
+- **Graficul** (`grafic.html`; în cod și în numele fișierelor se numește încă „harta”): o schemă de flux 2D (SVG, așezată automat cu dagre), de sus în jos, cu fazele încadrate în casete, cu toate deciziile posibile în litigiile de achiziții publice de până la încheierea contractului, adică Partea II a ghidului. Nu e un joc, ci o reprezentare a ramificațiilor. Pe site se spune „graficul”, nu „harta”; excepție face diagrama „Harta căilor de atac” din textul ghidului.
 - **Despre** (`despre.html`): prezentarea lui Serban, data actualizării, contact.
 
 Conținutul provine EXCLUSIV din ghidul lui Serban. Nu adăuga reguli juridice din memorie. Orice text nou se citează la secțiunea din ghid și la articol.
 
 ## Structura
 - `harta/src/data.js` — sursa de adevăr pentru hartă:
-  - `NODES` — etapele. Câmpuri: `id`, `type` (moment, decizie, remediu, solutie, risc, link), `lvl` (0 procedura, 1 CNSC, 2 curtea de apel, 3 căi extraordinare), `tr` (pista: contract, cnsc), `col` (poziția pe axa timpului), `dz` (decalaj pe adâncime), `roles` (ofertant, castigator, ac), `t` (titlu), `s` (eticheta scurtă), `sum`, `f` (perechi [etichetă, text]), `warn`, `calc` (`{zile:[peste,sub], de:'...'}` pentru calculatorul de termene), `ref` (secțiunile din ghid), `art`.
+  - `PHASES` — fazele (casetele graficului 2D); fiecare etapă aparține exact unei faze.
+  - `NODES` — etapele. Câmpuri: `id`, `type` (moment, decizie, raspuns — Da/Nu, act — act al AC, remediu, solutie, risc, link), `lvl` (0 procedura, 1 CNSC, 2 curtea de apel, 3 căi extraordinare), `tr` (pista: contract, cnsc), `col`, `dz` (pozițiile din vechiul grafic 3D; graficul 2D nu le mai folosește, le păstrăm pentru o eventuală variantă 3D), `roles` (ofertant, castigator, ac), `t` (titlu), `s` (eticheta scurtă), `sum`, `f` (perechi [etichetă, text]), `warn`, `calc` (`{zile:[peste,sub], de:'...'}` pentru calculatorul de termene), `ref` (secțiunile din ghid), `art`.
   - `EDGES` — legăturile, ca `[from, to, eticheta, kind, eticheta_scurtă?]`, cu kind: flow, choice, risk, loop, out. Eticheta scurtă (opțională) apare pe hartă; fișa etapei arată eticheta completă.
   - `PATHS` — traseele marcate. Fiecare pereche consecutivă de etape trebuie să existe și ca muchie în `EDGES`.
   - `HOLIDAYS` — sărbătorile legale din 2026–2027, folosite de calculatorul de termene (art. 5 L101: ziua evenimentului nu se numără; termenul se prelungește dacă ultima zi e nelucrătoare).
-- `harta/src/main.js` — scena 3D. Constantele de spațiere sunt `SX`, `LY`, `ZS`, `RISK_DY`. Etichetele care se suprapun pe ecran sunt ascunse după prioritate. Dacă URL-ul are `#<id_etapă>`, harta deschide direct acea etapă.
-- `harta/src/page.html` — CSS-ul și markup-ul hărții. Culorile sunt definite ca tokens, cu temă deschisă și închisă.
+- `harta/src/main.js` — graficul 2D. Fiecare fază se așază separat (dagre, de sus în jos), iar fazele se stivuiesc vertical. Legăturile unei etape spre altă fază devin un singur „portal” pe fază-destinație. O capcană cu mai multe surse se desenează lângă fiecare sursă. Punctele de decizie sunt întrebări cu răspunsuri Da/Nu (etape `raspuns`), din care pleacă variantele, după schema lui Serban pentru Faza 1. Deplasare: tragere sau derulare; zoom: Ctrl + rotița sau două degete. Dacă URL-ul are `#<id_etapă>`, graficul deschide direct acea etapă.
+- `harta/src/page.html` — CSS-ul și markup-ul graficului. Culorile sunt tokens, cu temă deschisă și închisă; fiecare tip de etapă are `--c-*` (contur) și `--b-*` (fundal): roz = etapă, verde = întrebare, albastru = răspuns Da/Nu, gri = act al AC, galben = cerere / cale de atac, roșu = capcană.
 - `harta/build.mjs` → `harta/out/harta.html` (pachet esbuild, inclus în pagină).
 - `harta/build_ghid.mjs` → `harta/out/ghid.html`. Adaugă butoanele „Vezi pe hartă”, legând secțiunile ghidului de etapele hărții prin `ref`.
 - `harta/build_site.mjs` → `harta/site/` (ghidul devine `index.html`, graficul `grafic.html`). Fonturile sunt găzduite local, din @fontsource, ca să nu se încarce nimic de pe Google (motiv GDPR). Tot aici se adaugă meta-tagurile, favicon-ul și pagina 404.
@@ -48,7 +49,7 @@ Sursa este documentul Claude Docs „Ghid practic — Litigiile în materia achi
 
 ## Stadiu (3.10.2026)
 Făcut:
-- harta pentru Partea II (61 de etape, 106 legături, 6 trasee, calculator de termene, filtru după rol, vedere listă), inclusiv ramura solicitării de clarificări privind documentația și ramura solicitării de clarificări din evaluare (art. 209 L98; IV.3);
+- graficul 2D pentru Partea II (67 de etape, 118 legături, 6 trasee, 8 faze, calculator de termene, filtru după rol, vedere listă); Faza 1 restructurată după schema lui Serban (Da/Nu, solicitarea de clarificări ca etapă, contestație separată împotriva răspunsului la clarificări); inclusiv ramura solicitării de clarificări privind documentația și ramura solicitării de clarificări din evaluare (art. 209 L98; IV.3);
 - calea judiciară (tribunal, recurs) a fost scoasă din hartă la cererea lui Serban: nu e de interes practic pentru un avocat la început de drum;
 - pagina „Despre” (prezentarea lui Serban, data actualizării, contact); data actualizării se setează o singură dată, în `harta/src/site.js`;
 - pagina Ghidul, completă (Părțile I–IV și anexele), cu cele 8 diagrame;
@@ -59,4 +60,5 @@ De făcut sau de discutat cu Serban:
 - harta pentru Partea III (executare, nulitate, despăgubiri, suspendare după semnare) și, eventual, traseele din Partea IV (scenariile CNAIR / Alfa–Beta);
 - Serban trebuie să verifice: ramificările deduse („nimeni nu atacă decizia”, „contractul fusese deja semnat”); etichetele scurte;
 - domeniul propriu, încă neales, legat la Netlify prin Domain management;
-- o îmbunătățire minoră: etichetele de pe muchii se pot suprapune când o etapă are multe ieșiri.
+- Serban revizuiește graficul fază cu fază (Faza 1 e făcută); fișa de verificare PDF se generează din `data.js` (scriptul nu e încă în repository);
+- o eventuală variantă 3D, după ce toate fazele sunt corectate.

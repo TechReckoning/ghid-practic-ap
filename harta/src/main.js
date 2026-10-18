@@ -1,6 +1,5 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { LEVELS, TRACKS, ROLES, TYPES, NODES, EDGES, PATHS, HOLIDAYS } from './data.js';
+import dagre from '@dagrejs/dagre';
+import { ROLES, TYPES, NODES, EDGES, PATHS, PHASES, HOLIDAYS } from './data.js';
 import { UPDATED } from './site.js';
 
 // ───────────────────────── model
@@ -9,217 +8,210 @@ const edges = EDGES.map(([from, to, label, kind, short], i) => ({ i, from, to, l
 const outE = {}, inE = {};
 NODES.forEach((n) => { outE[n.id] = []; inE[n.id] = []; });
 edges.forEach((e) => { outE[e.from].push(e); inE[e.to].push(e); });
-
-const SX = 5.2, LY = 11, RISK_DY = -3, X0 = 9, ZS = 2;
-function posOf(n) {
-  return new THREE.Vector3((n.col - X0) * SX, n.lvl * LY + (n.type === 'risc' ? RISK_DY : 0), (TRACKS[n.tr].z + (n.dz || 0)) * ZS);
-}
-NODES.forEach((n) => { n.pos = posOf(n); });
+const phaseOf = {};
+PHASES.forEach((P, i) => P.nodes.forEach((id) => { phaseOf[id] = i; }));
 
 const state = {
-  sel: null, role: 'all', showRisk: true, view: '3d',
+  sel: null, role: 'all', showRisk: true, view: 'graf',
   path: null, step: 0,
 };
 
 // ───────────────────────── DOM
 const $ = (s) => document.querySelector(s);
 const stage = $('#stage');
-const labelsEl = $('#labels');
 const panelBody = $('#panel-body');
 const panel = $('#panel');
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, parent) => {
+  const x = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) x.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(x);
+  return x;
+};
+const TYPE_GLYPH = { moment: '■', decizie: '◆', raspuns: '●', act: '■', remediu: '▮', solutie: '●', risc: '▼', link: '◎' };
 
-// ───────────────────────── colors from tokens
-const css = () => getComputedStyle(document.documentElement);
-let C = {};
-function readColors() {
-  const s = css();
-  const g = (k) => new THREE.Color(s.getPropertyValue(k).trim() || '#888');
-  C = {
-    moment: g('--c-moment'), decizie: g('--c-decizie'), remediu: g('--c-remediu'), solutie: g('--c-solutie'),
-    risc: g('--c-risc'), link: g('--c-link'), line: g('--edge'), accent: g('--accent'), floor: g('--floor'),
-    floorEdge: g('--floor-edge'), bg: g('--bg'),
+// ───────────────────────── text measurement & wrapping
+const mctx = document.createElement('canvas').getContext('2d');
+function measure(text, font) { mctx.font = font; return mctx.measureText(text).width; }
+function wrap(text, maxW, font) {
+  const lines = []; let line = '';
+  for (const w of String(text).split(/\s+/)) {
+    const t = line ? line + ' ' + w : w;
+    if (line && measure(t, font) > maxW) { lines.push(line); line = w; } else line = t;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+const F_NODE = '500 12.5px "IBM Plex Sans", system-ui, sans-serif';
+const F_DEC = '600 12.5px "IBM Plex Sans", system-ui, sans-serif';
+const F_EDGE = 'italic 400 11px "IBM Plex Sans", system-ui, sans-serif';
+const F_PHASE = '600 15px "Source Serif 4", Georgia, serif';
+const LH = 16, ELH = 14;
+
+// ───────────────────────── layout (dagre, de sus în jos, fazele ca grupuri)
+// Capcanele cu mai multe surse se desenează o dată pentru fiecare sursă (copii), ca să nu traverseze graficul.
+const items = {}; // cheie de afișare -> { key, id, n, w, h, lines }
+const edgeTarget = {}; // e.i -> cheia de afișare a destinației
+const itemsOf = {}; // id etapă -> [chei]
+function boxFor(n) {
+  if (n.type === 'raspuns') return { lines: [n.s], w: 56, h: 30 };
+  const font = n.type === 'decizie' ? F_DEC : F_NODE;
+  const maxW = n.type === 'decizie' ? 200 : 180;
+  const lines = wrap(n.t, maxW, font);
+  const tw = Math.max(...lines.map((l) => measure(l, font)));
+  const padX = n.type === 'decizie' ? 34 : 14;
+  return { lines, w: Math.ceil(tw + padX * 2), h: lines.length * LH + 16 };
+}
+let world, gNodes, gEdges, gLabels, gPhases, bounds;
+// O capcană se desenează lângă etapa din care pleacă. Dacă are mai multe surse (sau sursa e în altă fază),
+// apare câte o copie lângă fiecare sursă.
+const riskIn = {};
+edges.forEach((e) => { if (byId[e.to].type === 'risc') riskIn[e.to] = (riskIn[e.to] || 0) + 1; });
+const riskCopied = (id) => byId[id].type === 'risc' && !(riskIn[id] === 1 && inE[id].every((e) => phaseOf[e.from] === phaseOf[id]));
+// Legăturile unei etape spre altă fază se adună într-un singur portal pe fază-destinație.
+// Portal cu o singură destinație: arată etapa; cu mai multe: arată faza (detaliile sunt în fișa etapei).
+function portalLabel(it) { return it.targets.length === 1 ? `→ ${PHASES[it.phaseTo].name.split(' · ')[0]} · ${byId[it.targets[0]].s}` : `→ ${PHASES[it.phaseTo].name}`; }
+function layoutPhase(P, pi) {
+  const g = new dagre.graphlib.Graph({ multigraph: true });
+  g.setGraph({ rankdir: 'TB', nodesep: 26, ranksep: 38, edgesep: 12, marginx: 0, marginy: 0 });
+  g.setDefaultEdgeLabel(() => ({}));
+  const local = {};
+  const add = (key, n) => {
+    if (local[key]) return;
+    const b = boxFor(n);
+    local[key] = { key, id: n.id, n, portal: false, phase: pi, ...b };
+    g.setNode(key, { width: b.w, height: b.h });
   };
-}
-readColors();
-
-// ───────────────────────── three setup
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-stage.appendChild(renderer.domElement);
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 500);
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.minDistance = 10;
-controls.maxDistance = 320;
-controls.maxPolarAngle = Math.PI * 0.495;
-
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.1));
-const dir = new THREE.DirectionalLight(0xffffff, 1.1);
-dir.position.set(-20, 40, 30);
-scene.add(dir);
-
-const VIEWS = {
-  ansamblu: { dir: [-0.06, 0.3, 0.95], target: [2, 14, 0], r: 42 },
-  fata: { dir: [0, 0.06, 1], target: [2, 15, 0], r: 46 },
-  sus: { dir: [0, 1, 0.0001], target: [2, 0, 0], r: 46 },
-};
-function fitPos(k) {
-  const v = VIEWS[k];
-  const vf = (camera.fov * Math.PI) / 360;
-  const hf = Math.atan(Math.tan(vf) * camera.aspect);
-  const d = v.r / Math.sin(Math.min(vf * 1.35, hf));
-  return new THREE.Vector3(...v.dir).normalize().multiplyScalar(d).add(new THREE.Vector3(...v.target));
-}
-
-// floors
-const xmin = (-1.2 - X0) * SX, xmax = (19.4 - X0) * SX;
-const zmin = -12 * ZS, zmax = 11.5 * ZS;
-const floors = [];
-LEVELS.forEach((L) => {
-  const w = xmax - xmin, d = zmax - zmin;
-  const g = new THREE.PlaneGeometry(w, d);
-  const m = new THREE.MeshBasicMaterial({ color: C.floor, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide });
-  const mesh = new THREE.Mesh(g, m);
-  mesh.rotation.x = -Math.PI / 2;
-  const y = L.id * LY - 0.75 + (L.id === 0 ? RISK_DY + 0.1 : 0) * 0;
-  mesh.position.set((xmin + xmax) / 2, L.id * LY - 0.8, (zmin + zmax) / 2);
-  scene.add(mesh);
-  const eg = new THREE.EdgesGeometry(g);
-  const lm = new THREE.LineBasicMaterial({ color: C.floorEdge, transparent: true, opacity: 0.9 });
-  const outline = new THREE.LineSegments(eg, lm);
-  outline.rotation.x = -Math.PI / 2;
-  outline.position.copy(mesh.position);
-  scene.add(outline);
-  // track guides
-  const tl = [];
-  Object.values(TRACKS).forEach((T) => {
-    const pts = [new THREE.Vector3(xmin + 0.5, mesh.position.y + 0.01, T.z), new THREE.Vector3(xmax - 0.5, mesh.position.y + 0.01, T.z)];
-    const lg = new THREE.BufferGeometry().setFromPoints(pts);
-    const lmat = new THREE.LineDashedMaterial({ color: C.floorEdge, dashSize: 0.6, gapSize: 0.5, transparent: true, opacity: 0.8 });
-    const line = new THREE.Line(lg, lmat);
-    line.computeLineDistances();
-    scene.add(line);
-    tl.push(line);
+  P.nodes.forEach((id) => { if (!riskCopied(id)) add(id, byId[id]); });
+  const groups = {}; // cheie de legătură -> { from, to, edges[] }
+  edges.filter((e) => phaseOf[e.from] === pi).forEach((e) => {
+    let to = e.to;
+    if (phaseOf[e.to] !== pi && !(byId[e.to].type === 'risc' && riskIn[e.to] === 1)) {
+      to = `pt:${e.from}:${phaseOf[e.to]}`;
+      if (!local[to]) local[to] = { key: to, portal: true, phase: pi, phaseTo: phaseOf[e.to], targets: [], kinds: [] };
+      local[to].targets.push(e.to);
+    } else {
+      if (riskCopied(e.to)) to = e.to + '@' + e.from;
+      add(to, byId[e.to]);
+    }
+    edgeTarget[e.i] = to;
+    const gk = e.from + '>' + to;
+    (groups[gk] = groups[gk] || { from: e.from, to, edges: [] }).edges.push(e);
   });
-  floors.push({ mesh, outline, tl, y: mesh.position.y });
-});
-
-// node meshes
-const GEO = {
-  moment: new THREE.SphereGeometry(0.44, 32, 16),
-  decizie: new THREE.OctahedronGeometry(0.66),
-  remediu: new THREE.BoxGeometry(0.78, 0.98, 0.22),
-  solutie: new THREE.SphereGeometry(0.52, 32, 16),
-  risc: new THREE.ConeGeometry(0.46, 0.82, 3),
-  link: new THREE.TorusGeometry(0.42, 0.15, 12, 32),
-};
-const pickables = [];
-NODES.forEach((n) => {
-  const mat = new THREE.MeshStandardMaterial({ color: C[n.type], roughness: 0.45, metalness: 0.05, transparent: true });
-  const mesh = new THREE.Mesh(GEO[n.type], mat);
-  mesh.position.copy(n.pos);
-  if (n.type === 'risc') mesh.rotation.x = Math.PI;
-  if (n.type === 'solutie') mesh.scale.setScalar(0.85);
-  mesh.userData.id = n.id;
-  scene.add(mesh);
-  pickables.push(mesh);
-  n.mesh = mesh;
-  // invisible larger hit target
-  const hit = new THREE.Mesh(new THREE.SphereGeometry(0.95, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
-  hit.position.copy(n.pos);
-  hit.userData.id = n.id;
-  scene.add(hit);
-  pickables.push(hit);
-  n.hit = hit;
-});
-
-// selection ring
-const ring = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.12, 48), new THREE.MeshBasicMaterial({ color: C.accent, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthTest: false }));
-ring.renderOrder = 10;
-ring.visible = false;
-scene.add(ring);
-
-// edges
-const up = new THREE.Vector3(0, 1, 0);
-const coneGeo = new THREE.ConeGeometry(0.15, 0.42, 12);
-edges.forEach((e) => {
-  const a = byId[e.from].pos, b = byId[e.to].pos;
-  const mid = a.clone().add(b).multiplyScalar(0.5);
-  const dist = a.distanceTo(b);
-  const lift = e.kind === 'loop' ? 2.2 + dist * 0.18 : 0.5 + dist * 0.07;
-  mid.y += lift;
-  const curve = new THREE.QuadraticBezierCurve3(a.clone(), mid, b.clone());
-  e.curve = curve;
-  const dashed = e.kind === 'loop' || e.kind === 'out';
-  let line;
-  const mat = dashed
-    ? new THREE.LineDashedMaterial({ color: C.line, dashSize: 0.35, gapSize: 0.3, transparent: true })
-    : new THREE.MeshBasicMaterial({ color: C.line, transparent: true });
-  if (dashed) {
-    const g = new THREE.BufferGeometry().setFromPoints(curve.getPoints(48));
-    line = new THREE.Line(g, mat);
-    line.computeLineDistances();
-  } else {
-    line = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, e.kind === 'risk' ? 0.03 : 0.045, 6, false), mat);
-  }
-  scene.add(line);
-  // arrow
-  const endR = byId[e.to].type === 'decizie' ? 0.8 : 0.66;
-  const len = curve.getLength();
-  const t = Math.max(0.5, 1 - (endR + 0.2) / len);
-  const p = curve.getPointAt(t);
-  const tan = curve.getTangentAt(t);
-  const cone = new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial({ color: C.line, transparent: true }));
-  cone.position.copy(p);
-  cone.quaternion.setFromUnitVectors(up, tan);
-  scene.add(cone);
-  e.line = line;
-  e.cone = cone;
-});
-
-// ───────────────────────── labels
-const TYPE_GLYPH = { moment: '●', decizie: '◆', remediu: '▮', solutie: '●', risc: '▼', link: '◎' };
-NODES.forEach((n) => {
-  const b = document.createElement('button');
-  b.className = `lbl t-${n.type}`;
-  b.type = 'button';
-  b.textContent = n.s;
-  b.title = n.t;
-  b.addEventListener('click', (ev) => { ev.stopPropagation(); select(n.id, { fly: true }); });
-  b.addEventListener('pointerenter', () => setHover(n.id));
-  b.addEventListener('pointerleave', () => setHover(null));
-  labelsEl.appendChild(b);
-  n.lbl = b;
-});
-const floorLabels = LEVELS.map((L, i) => {
-  const d = document.createElement('div');
-  d.className = 'flbl';
-  d.innerHTML = `<span>Nivel ${L.id}</span>${L.name}`;
-  labelsEl.appendChild(d);
-  return { el: d, p: new THREE.Vector3(xmin + 0.6, floors[i].y + 0.05, zmin + 0.4) };
-});
-const trackLabels = [
-  ['contract', 0], ['cnsc', 0],
-].map(([k, lvl]) => {
-  const d = document.createElement('div');
-  d.className = 'tlbl';
-  d.textContent = TRACKS[k].name;
-  labelsEl.appendChild(d);
-  return { el: d, k, p: new THREE.Vector3(xmin + 0.6, floors[lvl].y + 0.05, TRACKS[k].z * ZS - 0.6) };
-});
-const edgeLabelPool = [];
-function edgeLabel(i) {
-  if (!edgeLabelPool[i]) {
-    const d = document.createElement('div');
-    d.className = 'elbl';
-    labelsEl.appendChild(d);
-    edgeLabelPool[i] = d;
-  }
-  return edgeLabelPool[i];
+  Object.values(local).filter((it) => it.portal).forEach((it) => {
+    it.id = it.targets[0];
+    it.n = byId[it.id];
+    it.lines = wrap(portalLabel(it), 180, F_NODE);
+    it.w = Math.ceil(Math.max(...it.lines.map((l) => measure(l, F_NODE))) + 24);
+    it.h = it.lines.length * LH + 14;
+    g.setNode(it.key, { width: it.w, height: it.h });
+  });
+  Object.entries(groups).forEach(([gk, G]) => {
+    const e = G.edges[0];
+    const multi = G.edges.length > 1;
+    const showLabel = !multi && byId[e.to].type !== 'raspuns';
+    const lines = showLabel ? wrap(e.short, 150, F_EDGE) : [];
+    const lw = lines.length ? Math.max(...lines.map((l) => measure(l, F_EDGE))) + 10 : 0;
+    const kind = multi ? 'flow' : e.kind;
+    g.setEdge(G.from, G.to, { group: G, kind, lines, width: lw, height: lines.length ? lines.length * ELH + 4 : 0, labelpos: 'c', weight: kind === 'loop' ? 0 : kind === 'risk' ? 1 : 2 }, gk);
+  });
+  dagre.layout(g);
+  return { g, local };
 }
-let activeEdgeLabels = [];
+function buildLayout() {
+  const PAD = 26, TITLE = 40, GAP = 34;
+  const parts = PHASES.map((P, i) => ({ P, ...layoutPhase(P, i) }));
+  parts.forEach((pt) => { const gg = pt.g.graph(); pt.w = Math.max(gg.width, measure(pt.P.name, F_PHASE) + 10) + PAD * 2; pt.h = gg.height + PAD + TITLE; pt.gw = gg.width; });
+  const W = Math.max(...parts.map((pt) => pt.w));
+  let y = 30;
+  parts.forEach((pt) => {
+    pt.box = { x: 30 + (W - pt.w) / 2, y, w: pt.w, h: pt.h };
+    pt.ox = pt.box.x + (pt.w - pt.gw) / 2; pt.oy = y + TITLE;
+    y += pt.h + GAP;
+  });
+  bounds = { x: 0, y: 0, w: W + 60, h: y + 30 - GAP };
+  return parts;
+}
+
+// curbă netedă prin punctele date de dagre (Catmull-Rom → Bézier)
+function smooth(pts) {
+  if (pts.length < 3) return `M${pts[0].x},${pts[0].y}L${pts[pts.length - 1].x},${pts[pts.length - 1].y}`;
+  let d = `M${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
+    const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+    d += `C${c1.x.toFixed(1)},${c1.y.toFixed(1)} ${c2.x.toFixed(1)},${c2.y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+function shapePath(type, w, h) {
+  const x = -w / 2, y = -h / 2;
+  if (type === 'portal') { const r = 6; return `M${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x + r}Q${x},${y + h} ${x},${y + h - r}V${y + r}Q${x},${y} ${x + r},${y}Z`; }
+  if (type === 'decizie') { const s = 16; return `M${x + s},${y}H${x + w - s}L${x + w},0L${x + w - s},${y + h}H${x + s}L${x},0Z`; }
+  const r = type === 'raspuns' ? h / 2 : type === 'moment' || type === 'solutie' ? 8 : 4;
+  return `M${x + r},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + h - r}A${r},${r} 0 0 1 ${x + w - r},${y + h}H${x + r}A${r},${r} 0 0 1 ${x},${y + h - r}V${y + r}A${r},${r} 0 0 1 ${x + r},${y}Z`;
+}
+
+const svg = el('svg', { id: 'g2d', role: 'img', 'aria-label': 'Graficul deciziilor, ca schemă de flux' }, stage);
+const drawn = []; // linii desenate: { path, lab, kind, edges[] }
+function render() {
+  drawn.length = 0;
+  const parts = buildLayout();
+  svg.innerHTML = '';
+  const defs = el('defs', {}, svg);
+  ['flow', 'choice', 'risk', 'loop', 'out', 'acc'].forEach((k) => {
+    const m = el('marker', { id: 'a-' + k, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M0 0L10 5L0 10z', class: 'ah k-' + k }, m);
+  });
+  world = el('g', { id: 'world' }, svg);
+  gPhases = el('g', { class: 'phases' }, world);
+  gEdges = el('g', { class: 'edges' }, world);
+  gLabels = el('g', { class: 'elabels' }, world);
+  gNodes = el('g', { class: 'nodes' }, world);
+  parts.forEach((pt) => {
+    const { P, g, local, ox, oy, box } = pt;
+    P.box = box;
+    const gp = el('g', { class: 'phase', 'data-ph': P.id }, gPhases);
+    el('rect', { x: box.x, y: box.y, width: box.w, height: box.h, rx: 12 }, gp);
+    const tx = el('text', { x: box.x + 16, y: box.y + 26, class: 'ph-t' }, gp);
+    tx.textContent = P.name;
+    g.edges().forEach((ed) => {
+      const L = g.edge(ed);
+      const path = el('path', { d: smooth(L.points.map((q) => ({ x: q.x + ox, y: q.y + oy }))), class: `ed k-${L.kind}`, 'marker-end': `url(#a-${L.kind})` }, gEdges);
+      let lab = null;
+      if (L.lines.length) {
+        lab = el('g', { class: `el k-${L.kind}`, transform: `translate(${L.x + ox},${L.y + oy})` }, gLabels);
+        el('rect', { x: -L.width / 2, y: -L.height / 2, width: L.width, height: L.height, rx: 3 }, lab);
+        L.lines.forEach((l, k) => { const t = el('text', { x: 0, y: -L.height / 2 + 12 + k * ELH, 'text-anchor': 'middle' }, lab); t.textContent = l; });
+      }
+      drawn.push({ path, lab, kind: L.kind, edges: L.group.edges });
+    });
+    Object.values(local).forEach((it) => {
+      const q = g.node(it.key);
+      it.x = q.x + ox; it.y = q.y + oy;
+      const key = it.portal ? `${P.id}|${it.key}` : it.key;
+      items[key] = it;
+      if (!it.portal) (itemsOf[it.id] = itemsOf[it.id] || []).push(key);
+      const ng = el('g', { class: `nd t-${it.n.type}${it.portal ? ' portal' : ''}`, transform: `translate(${it.x},${it.y})`, 'data-id': it.id, tabindex: 0, role: 'button', 'aria-label': it.portal ? portalLabel(it) : it.n.t }, gNodes);
+      el('path', { d: shapePath(it.portal ? 'portal' : it.n.type, it.w, it.h), class: 'shape' }, ng);
+      it.lines.forEach((l, k) => {
+        const t = el('text', { x: 0, y: -it.lines.length * LH / 2 + LH / 2 + 4.5 + k * LH, 'text-anchor': 'middle' }, ng);
+        t.textContent = l;
+      });
+      const tt = el('title', {}, ng); tt.textContent = it.portal ? it.targets.map((id) => byId[id].t).join(' · ') : it.n.t;
+      const act = () => { if (it.portal && it.targets.length > 1) fitBox(PHASES[it.phaseTo].box, { maxK: 1 }); else select(it.id, { fly: true }); };
+      ng.addEventListener('click', (ev) => { ev.stopPropagation(); if (!dragMoved) act(); });
+      ng.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); act(); } });
+      it.g = ng;
+    });
+  });
+  const sel = $('#phase-go');
+  if (sel && !sel.options.length) {
+    sel.appendChild(new Option('Mergi la faza…', ''));
+    PHASES.forEach((P) => sel.appendChild(new Option(P.name, P.id)));
+  }
+}
 
 // ───────────────────────── emphasis
 function reach(start, dirMap, key) {
@@ -240,11 +232,10 @@ function visibleNode(n) {
   if (!state.showRisk && n.type === 'risc') return false;
   return true;
 }
-const OP = { strong: 1, mid: 0.6, base: 0.95, dim: 0.13 };
 function computeLevels() {
   const lv = {};
   const elv = {};
-  let accentEdges = new Set();
+  const accentEdges = new Set();
   if (state.path) {
     const P = PATHS.find((p) => p.id === state.path);
     const set = new Set(P.nodes);
@@ -273,72 +264,124 @@ function computeLevels() {
 }
 function applyEmphasis() {
   const { lv, elv, accentEdges } = computeLevels();
-  NODES.forEach((n) => {
-    const vis = visibleNode(n);
-    const o = OP[lv[n.id]];
-    n.mesh.visible = vis;
-    n.hit.visible = vis;
-    n.mesh.material.opacity = o;
-    n.mesh.material.depthWrite = o > 0.5;
-    n.mesh.material.color.copy(C[n.type]);
-    n.lbl.hidden = !vis;
-    n.lbl.dataset.lv = lv[n.id];
-    n.lbl.classList.toggle('sel', n.id === state.sel);
-    n.mesh.scale.setScalar((n.type === 'solutie' ? 0.85 : 1) * (n.id === state.sel ? 1.25 : 1));
+  Object.values(items).forEach((it) => {
+    const ids = it.portal ? it.targets : [it.id];
+    const vis = ids.some((id) => visibleNode(byId[id]));
+    it.g.style.display = vis ? '' : 'none';
+    it.g.dataset.lv = ids.map((id) => lv[id]).sort((a, b) => ({ dim: 0, mid: 1, base: 2, strong: 3 })[b] - ({ dim: 0, mid: 1, base: 2, strong: 3 })[a])[0];
+    it.g.classList.toggle('sel', it.id === state.sel);
   });
-  edges.forEach((e) => {
-    const vis = visibleNode(byId[e.from]) && visibleNode(byId[e.to]);
-    e.line.visible = e.cone.visible = vis;
-    let o;
-    if (elv[e.i]) o = OP[elv[e.i]];
-    else {
-      const a = OP[lv[e.from]], b = OP[lv[e.to]];
-      o = Math.min(a, b) * (state.sel || state.path ? 0.55 : 0.75);
-      if (lv[e.from] === 'dim' || lv[e.to] === 'dim') o = 0.07;
+  const RANK = { dim: 0, mid: 1, base: 2, strong: 3 };
+  drawn.forEach((d) => {
+    let best = 'dim', acc = false, vis = false;
+    d.edges.forEach((e) => {
+      if (visibleNode(byId[e.from]) && visibleNode(byId[e.to])) vis = true;
+      let l = elv[e.i];
+      if (!l) l = lv[e.from] === 'dim' || lv[e.to] === 'dim' ? 'dim' : lv[e.from] === 'base' ? 'base' : 'mid';
+      if (RANK[l] > RANK[best]) best = l;
+      if (accentEdges.has(e.i)) acc = true;
+    });
+    for (const x of [d.path, d.lab]) {
+      if (!x) continue;
+      x.style.display = vis ? '' : 'none';
+      x.dataset.lv = best;
+      x.classList.toggle('acc', acc);
     }
-    const col = accentEdges.has(e.i) ? C.accent : e.kind === 'risk' ? C.risc : C.line;
-    [e.line.material, e.cone.material].forEach((m) => { m.opacity = o; m.color.copy(col); });
+    d.path.setAttribute('marker-end', `url(#a-${acc ? 'acc' : d.kind})`);
   });
-  // edge labels
-  activeEdgeLabels.forEach((x) => { x.el.hidden = true; });
-  activeEdgeLabels = [];
-  let list = [];
-  if (state.path) {
-    const P = PATHS.find((p) => p.id === state.path);
-    const a = P.nodes[state.step], b = P.nodes[state.step + 1];
-    const e = b && edges.find((x) => x.from === a && x.to === b);
-    if (e) list = [e];
-  } else if (state.sel) list = outE[state.sel];
-  list.filter((e) => visibleNode(byId[e.to])).forEach((e, k) => {
-    const el = edgeLabel(k);
-    el.textContent = e.short;
-    el.className = `elbl k-${e.kind}`;
-    el.hidden = false;
-    activeEdgeLabels.push({ el, p: e.curve.getPointAt(e.kind === 'risk' ? 0.72 : 0.55) });
+  // casetele fazelor rămân vizibile; se estompează doar cele fără nimic evidențiat
+  PHASES.forEach((P) => {
+    const any = P.nodes.some((id) => lv[id] !== 'dim');
+    gPhases.querySelector(`[data-ph="${P.id}"]`).dataset.lv = any ? 'base' : 'dim';
   });
-  if (state.sel && byId[state.sel].mesh.visible) {
-    ring.visible = true;
-    ring.position.copy(byId[state.sel].pos);
-  } else ring.visible = false;
-  ring.material.color.copy(C.accent);
 }
 
-// ───────────────────────── camera fly
-let fly = null;
-function flyTo(target, pos, ms = 700) {
-  fly = { t0: performance.now(), ms, fromT: controls.target.clone(), toT: target.clone(), fromP: camera.position.clone(), toP: pos.clone() };
+// ───────────────────────── pan & zoom
+const view = { x: 0, y: 0, k: 1 };
+let anim = null;
+function applyView() { world.setAttribute('transform', `translate(${view.x.toFixed(1)},${view.y.toFixed(1)}) scale(${view.k.toFixed(4)})`); }
+const clampK = (k) => Math.max(0.15, Math.min(2.2, k));
+function vpSize() { const r = stage.getBoundingClientRect(); return { w: r.width, h: r.height }; }
+function animateTo(t, ms = 450) {
+  const from = { ...view };
+  const t0 = performance.now();
+  cancelAnimationFrame(anim);
+  const step = (now) => {
+    const a = Math.min(1, (now - t0) / ms);
+    const e = a < 0.5 ? 4 * a * a * a : 1 - Math.pow(-2 * a + 2, 3) / 2;
+    view.x = from.x + (t.x - from.x) * e; view.y = from.y + (t.y - from.y) * e; view.k = from.k + (t.k - from.k) * e;
+    applyView();
+    if (a < 1) anim = requestAnimationFrame(step);
+  };
+  anim = requestAnimationFrame(step);
 }
-function flyToNode(id) {
-  const n = byId[id];
-  const off = camera.position.clone().sub(controls.target);
-  const want = Math.min(Math.max(off.length(), 24), 44);
-  off.setLength(want);
-  flyTo(n.pos, n.pos.clone().add(off));
+function fitBox(b, { top = false, pad = 24, maxK = 1.1, minK = 0, animate = true } = {}) {
+  const { w, h } = vpSize();
+  const k = clampK(Math.max(minK, Math.min(maxK, (w - pad * 2) / b.w, top ? Infinity : (h - pad * 2) / b.h)));
+  const t = { k, x: w / 2 - (b.x + b.w / 2) * k, y: top ? pad - b.y * k : h / 2 - (b.y + b.h / 2) * k };
+  if (animate) animateTo(t); else { Object.assign(view, t); applyView(); }
 }
-function setView(k) {
-  const v = VIEWS[k];
-  flyTo(new THREE.Vector3(...v.target), fitPos(k), 900);
+function focusNode(id) {
+  const keys = itemsOf[id] || [];
+  if (!keys.length) return;
+  const it = items[keys[0]];
+  const { w, h } = vpSize();
+  const k = Math.max(view.k, Math.min(1, w / 420));
+  animateTo({ k, x: w / 2 - it.x * k, y: h / 2 - it.y * k });
 }
+function zoomAt(f, cx, cy) {
+  const k = clampK(view.k * f);
+  view.x = cx - (cx - view.x) * (k / view.k); view.y = cy - (cy - view.y) * (k / view.k); view.k = k;
+  applyView();
+}
+const pointers = new Map();
+let dragStart = null, dragMoved = false, pinch = null;
+svg.addEventListener('pointerdown', (ev) => {
+  cancelAnimationFrame(anim);
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  dragMoved = false;
+  if (pointers.size === 1) dragStart = { x: ev.clientX, y: ev.clientY, vx: view.x, vy: view.y };
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: view.k };
+  }
+});
+svg.addEventListener('pointermove', (ev) => {
+  if (!pointers.has(ev.pointerId)) return;
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (pointers.size === 2 && pinch) {
+    const [a, b] = [...pointers.values()];
+    const r = svg.getBoundingClientRect();
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    zoomAt((pinch.k * d / pinch.d) / view.k, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+    dragMoved = true;
+    return;
+  }
+  if (!dragStart) return;
+  const dx = ev.clientX - dragStart.x, dy = ev.clientY - dragStart.y;
+  if (!dragMoved && Math.hypot(dx, dy) < 5) return;
+  if (!dragMoved) svg.setPointerCapture(ev.pointerId);
+  dragMoved = true;
+  view.x = dragStart.vx + dx; view.y = dragStart.vy + dy;
+  applyView();
+});
+const endPtr = (ev) => {
+  pointers.delete(ev.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 0) {
+    if (!dragMoved && ev.type === 'pointerup' && !ev.target.closest('.nd') && !state.path) select(null);
+    dragStart = null;
+  }
+};
+svg.addEventListener('pointerup', endPtr);
+svg.addEventListener('pointercancel', endPtr);
+svg.addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  cancelAnimationFrame(anim);
+  const r = svg.getBoundingClientRect();
+  if (ev.ctrlKey || ev.metaKey) zoomAt(Math.exp(-ev.deltaY * 0.01), ev.clientX - r.left, ev.clientY - r.top);
+  else { view.x -= ev.deltaX; view.y -= ev.deltaY; applyView(); }
+}, { passive: false });
 
 // ───────────────────────── selection & panel
 function select(id, { fly = false } = {}) {
@@ -350,13 +393,14 @@ function select(id, { fly = false } = {}) {
   }
   applyEmphasis();
   renderPanel();
-  if (id && fly && state.view === '3d') flyToNode(id);
   if (id) openSheet();
+  // centrarea se face după ce fișa s-a deschis (pe telefon, fișa micșorează zona graficului)
+  if (id && fly && state.view === 'graf') requestAnimationFrame(() => focusNode(id));
   if (state.view === 'list' && id) {
-    const el = document.getElementById(`li-${id}`);
-    if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    const li = document.getElementById(`li-${id}`);
+    if (li) { li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
     document.querySelectorAll('.li.on').forEach((x) => x.classList.remove('on'));
-    el?.classList.add('on');
+    li?.classList.add('on');
   }
 }
 
@@ -372,8 +416,7 @@ function renderPanel() {
     return;
   }
   const n = byId[state.sel];
-  const lvl = LEVELS[n.lvl].name;
-  const where = n.tr === 'contract' ? TRACKS.contract.name : lvl;
+  const where = PHASES[phaseOf[n.id]].name;
   const roles = n.roles.length === 3 ? '' : `<p class="roles">${n.roles.map((r) => `<span>${ROLES[r]}</span>`).join('')}</p>`;
   const fields = (n.f || []).map(([k, v]) => `<div class="fld"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
   const nxt = outE[n.id].map((e) => edgeBtn(e, e.to)).join('');
@@ -499,7 +542,9 @@ function bindCalc(n) {
 // ───────────────────────── intro content
 const legend = Object.keys(TYPES).map((k) => `<li><i class="g t-${k}" aria-hidden="true">${TYPE_GLYPH[k]}</i><b>${TYPES[k]}</b>${{
   moment: 'un moment din procedură sau din litigiu',
-  decizie: 'aici cineva alege; din el pleacă toate variantele',
+  decizie: 'o întrebare la care răspunzi cu Da sau Nu',
+  raspuns: 'răspunsul la întrebare; din el pleacă variantele',
+  act: 'un act emis de autoritatea contractantă',
   remediu: 'un act pe care îl depui: contestație, intervenție, plângere',
   solutie: 'cum se poate termina o etapă',
   risc: 'ce se întâmplă dacă ratezi un termen sau o condiție',
@@ -509,9 +554,9 @@ const INTRO = `
   <div class="ph"><div class="crumbs">Partea II · înainte de încheierea contractului</div><h2>Cum citești graficul?</h2></div>
   <p class="sum">Graficul reflectă o parte semnificativă dintre deciziile posibile într-un litigiu din domeniul achizițiilor publice, de la publicarea anunțului de participare și până la hotărârea definitivă a Curții de Apel asupra plângerii, revizuirii ori contestației în anulare. Alege orice etapă pentru a te familiariza cu variantele posibile. Căile procedurale ce pot fi urmate, actele procedurale care pot fi formulate, precum și capcanele ce pot apărea vor fi marcate distinctiv, fără ca restul graficului să dispară.</p>
   <dl class="fields axes">
-    <div class="fld"><dt>De la stânga la dreapta</dt><dd>timpul procedurii</dd></div>
-    <div class="fld"><dt>De jos în sus</dt><dd>treptele litigiului: procedura de atribuire, CNSC, curtea de apel, căile extraordinare</dd></div>
-    <div class="fld"><dt>Din față spre spate</dt><dd>încheierea contractului, calea CNSC</dd></div>
+    <div class="fld"><dt>De sus în jos</dt><dd>ordinea etapelor în procedură</dd></div>
+    <div class="fld"><dt>Casetele</dt><dd>fazele: documentația, evaluarea, rezultatul, contestația la CNSC, decizia, plângerea, căile extraordinare, încheierea contractului</dd></div>
+    <div class="fld"><dt>Navigarea</dt><dd>trage sau derulează pentru deplasare; Ctrl + rotița ori două degete pentru zoom</dd></div>
   </dl>
   <h3>Legenda</h3>
   <ul class="legend">${legend}</ul>
@@ -523,20 +568,13 @@ const INTRO = `
   <p class="abbr"><b>AC</b> autoritatea contractantă · <b>CNSC</b> Consiliul Național de Soluționare a Contestațiilor · <b>SEAP</b> Sistemul electronic de achiziții publice · <b>L101</b> Legea nr. 101/2016 · <b>L98</b> Legea nr. 98/2016 · <b>pragul UE</b> pragurile valorice de la care se aplică regimul „peste prag”</p>
   <p class="disc">Material educativ, nu consultanță juridică. Conținutul provine din „Ghid practic — Inițiere în litigiile din materia achizițiilor publice”, actualizat la ${UPDATED}. Înainte de a-l folosi într-un dosar, verificați forma consolidată în vigoare a actelor normative.</p>`;
 
+
 // ───────────────────────── list view
 function renderList() {
-  const groups = [
-    { k: 'Procedura de atribuire', f: (n) => n.lvl === 0 && n.tr === 'cnsc' },
-    { k: 'Încheierea contractului', f: (n) => n.tr === 'contract' },
-    { k: 'Contestația la CNSC', f: (n) => n.lvl === 1 && n.tr === 'cnsc' },
-    { k: 'Curtea de apel · plângerea', f: (n) => n.lvl === 2 && n.tr === 'cnsc' },
-    { k: 'Căi extraordinare de atac', f: (n) => n.lvl === 3 },
-  ];
-  const html = groups.map((g) => {
-    const items = NODES.filter(g.f).filter(visibleNode).filter((n) => state.role === 'all' || n.roles.includes(state.role))
-      .sort((a, b) => a.col - b.col || (a.dz || 0) - (b.dz || 0));
-    if (!items.length) return '';
-    return `<section class="lg"><h2>${g.k}</h2><ol>${items.map((n) => `
+  const html = PHASES.map((P) => {
+    const shown = P.nodes.map((id) => byId[id]).filter(visibleNode).filter((n) => state.role === 'all' || n.roles.includes(state.role));
+    if (!shown.length) return '';
+    return `<section class="lg"><h2>${esc(P.name)}</h2><ol>${shown.map((n) => `
       <li class="li" id="li-${n.id}">
         <button type="button" class="li-h" data-go="${n.id}"><i class="g t-${n.type}" aria-hidden="true">${TYPE_GLYPH[n.type]}</i><span>${esc(n.t)}</span><em>${TYPES[n.type]}</em></button>
         <p>${esc(n.sum)}</p>
@@ -547,49 +585,21 @@ function renderList() {
   $('#list').querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => select(b.dataset.go)));
 }
 
-// ───────────────────────── interaction
-const ray = new THREE.Raycaster();
-const ptr = new THREE.Vector2();
-let hoverId = null;
-let downAt = null;
-function pick(ev) {
-  const r = renderer.domElement.getBoundingClientRect();
-  ptr.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
-  ptr.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
-  ray.setFromCamera(ptr, camera);
-  const hits = ray.intersectObjects(pickables.filter((m) => m.visible || m === m), false).filter((h) => byId[h.object.userData.id].mesh.visible);
-  return hits.length ? hits[0].object.userData.id : null;
-}
-function setHover(id) {
-  if (hoverId === id) return;
-  if (hoverId) byId[hoverId].lbl.classList.remove('hov');
-  hoverId = id;
-  if (id) byId[id].lbl.classList.add('hov');
-  renderer.domElement.style.cursor = id ? 'pointer' : '';
-}
-renderer.domElement.addEventListener('pointermove', (ev) => { if (ev.pointerType === 'mouse') setHover(pick(ev)); });
-renderer.domElement.addEventListener('pointerdown', (ev) => { downAt = [ev.clientX, ev.clientY]; fly = null; });
-renderer.domElement.addEventListener('pointerup', (ev) => {
-  if (!downAt) return;
-  const moved = Math.hypot(ev.clientX - downAt[0], ev.clientY - downAt[1]);
-  downAt = null;
-  if (moved > 6) return;
-  const id = pick(ev);
-  if (id) select(id, { fly: true });
-  else if (!state.path) select(null);
-});
+// ───────────────────────── controls
 window.addEventListener('keydown', (ev) => {
   if (ev.target.closest('input, select, textarea')) return;
   if (ev.key === 'Escape') { if (state.path) exitPath(true); else select(null); }
   if (state.path && ev.key === 'ArrowRight') goStep(state.step + 1);
   if (state.path && ev.key === 'ArrowLeft') goStep(state.step - 1);
 });
-
 $('#role').addEventListener('change', (e) => { state.role = e.target.value; applyEmphasis(); if (state.view === 'list') renderList(); });
 $('#path').addEventListener('change', (e) => startPath(e.target.value));
 $('#t-risk').addEventListener('change', (e) => { state.showRisk = e.target.checked; applyEmphasis(); renderPanel(); if (state.view === 'list') renderList(); });
-document.querySelectorAll('[data-cam]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.cam)));
 document.querySelectorAll('[name="view"]').forEach((r) => r.addEventListener('change', (e) => setMode(e.target.value)));
+$('#zoom-in').addEventListener('click', () => { const { w, h } = vpSize(); zoomAt(1.25, w / 2, h / 2); });
+$('#zoom-out').addEventListener('click', () => { const { w, h } = vpSize(); zoomAt(0.8, w / 2, h / 2); });
+$('#fit').addEventListener('click', () => fitBox(bounds));
+$('#phase-go').addEventListener('change', (e) => { const P = PHASES.find((p) => p.id === e.target.value); if (P) fitBox(P.box, { maxK: 1 }); e.target.value = ''; });
 $('#sheet-toggle').addEventListener('click', () => {
   const c = panel.classList.toggle('collapsed');
   $('#sheet-toggle').setAttribute('aria-expanded', String(!c));
@@ -601,96 +611,22 @@ function openSheet() {
 function setMode(v) {
   state.view = v;
   document.body.dataset.view = v;
-  if (v === 'list') renderList(); else resize();
+  if (v === 'list') renderList();
 }
-
 PATHS.forEach((p) => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; $('#path').appendChild(o); });
 
-// theme changes
-const onTheme = () => {
-  readColors();
-  floors.forEach((f) => { f.mesh.material.color.copy(C.floor); f.outline.material.color.copy(C.floorEdge); f.tl.forEach((l) => l.material.color.copy(C.floorEdge)); });
+// ───────────────────────── start (după încărcarea fonturilor, ca măsurătorile textului să fie corecte)
+function start() {
+  render();
   applyEmphasis();
-};
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onTheme);
-new MutationObserver(onTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-
-// ───────────────────────── render loop
-function resize() {
-  const r = stage.getBoundingClientRect();
-  if (!r.width || !r.height) return;
-  renderer.setSize(r.width, r.height, false);
-  camera.aspect = r.width / r.height;
-  camera.updateProjectionMatrix();
+  renderPanel();
+  fitBox(PHASES[0].box, { top: true, maxK: 1, minK: 0.5, animate: false });
+  const h0 = decodeURIComponent(location.hash.slice(1));
+  if (byId[h0]) setTimeout(() => select(h0, { fly: true }), 200);
+  else if (window.matchMedia('(max-width: 860px)').matches) $('#sheet-toggle').click();
 }
-new ResizeObserver(resize).observe(stage);
-resize();
-controls.target.set(...VIEWS.ansamblu.target);
-camera.position.copy(fitPos('ansamblu'));
-if (window.matchMedia('(max-width: 600px)').matches) {
-  const t = byId.p_rezultat.pos.clone().add(new THREE.Vector3(-2, 2, 0));
-  controls.target.copy(t);
-  camera.position.copy(t).add(new THREE.Vector3(-0.07, 0.5, 0.86).normalize().multiplyScalar(54));
-}
-
-const v = new THREE.Vector3();
-function place(el, p, w, h, dy = 0) {
-  v.copy(p).project(camera);
-  if (v.z > 1 || v.z < -1) { el.style.visibility = 'hidden'; return; }
-  const x = (v.x * 0.5 + 0.5) * w, y = (-v.y * 0.5 + 0.5) * h + dy;
-  if (x < -200 || x > w + 200 || y < -60 || y > h + 60) { el.style.visibility = 'hidden'; return; }
-  el.style.visibility = '';
-  el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-  return { x, y, z: v.z };
-}
-const LV_PRI = { strong: 50, mid: 20, base: 10, dim: 0 };
-const TYPE_PRI = { decizie: 6, remediu: 5, moment: 4, link: 3, solutie: 2, risc: 1 };
-let sizeTick = 0;
-const tmp = new THREE.Vector3();
-function frame(now) {
-  requestAnimationFrame(frame);
-  if (state.view !== '3d') return;
-  if (fly) {
-    const k = Math.min(1, (now - fly.t0) / fly.ms);
-    const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-    controls.target.lerpVectors(fly.fromT, fly.toT, e);
-    camera.position.lerpVectors(fly.fromP, fly.toP, e);
-    if (k >= 1) fly = null;
-  }
-  controls.update();
-  ring.quaternion.copy(camera.quaternion);
-  renderer.render(scene, camera);
-  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
-  const dist = camera.position.distanceTo(controls.target);
-  labelsEl.dataset.far = dist > 115 ? '1' : '';
-  if (sizeTick++ % 30 === 0) NODES.forEach((n) => { n.lw = n.lbl.offsetWidth; n.lh = n.lbl.offsetHeight; });
-  const placed = [];
-  NODES.forEach((n) => {
-    if (n.lbl.hidden) return;
-    tmp.copy(n.pos);
-    tmp.y -= n.type === 'risc' ? 0.55 : 0.75;
-    const r = place(n.lbl, tmp, w, h, 4);
-    if (!r) return;
-    const lv = n.lbl.dataset.lv;
-    const pri = (n.id === state.sel ? 1000 : 0) + (n.id === hoverId ? 900 : 0) + LV_PRI[lv] + TYPE_PRI[n.type] + (1 - r.z) * 40;
-    placed.push({ n, pri, x0: r.x - n.lw / 2 - 3, x1: r.x + n.lw / 2 + 3, y0: r.y - 2, y1: r.y + n.lh + 2 });
-  });
-  placed.sort((a, b) => b.pri - a.pri);
-  const kept = [];
-  placed.forEach((p) => {
-    const hit = kept.some((k) => p.x0 < k.x1 && p.x1 > k.x0 && p.y0 < k.y1 && p.y1 > k.y0);
-    p.n.lbl.classList.toggle('cull', hit);
-    if (!hit) kept.push(p);
-  });
-  floorLabels.forEach((f) => place(f.el, f.p, w, h));
-  trackLabels.forEach((f) => { if (!f.el.hidden) place(f.el, f.p, w, h); });
-  activeEdgeLabels.forEach((x) => place(x.el, x.p, w, h, -10));
-}
-
-applyEmphasis();
-renderPanel();
-const h0 = decodeURIComponent(location.hash.slice(1));
-if (byId[h0]) setTimeout(() => select(h0, { fly: true }), 300);
-else if (window.matchMedia('(max-width: 860px)').matches) $('#sheet-toggle').click();
-requestAnimationFrame(frame);
-window.__harta = { select, setView, state };
+let started = false;
+const go = () => { if (!started) { started = true; start(); } };
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(go);
+setTimeout(go, 1500);
+window.__harta = { select, state, fitBox, view };

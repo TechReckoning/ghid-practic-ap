@@ -24,6 +24,8 @@ export const ROLES = {
 export const TYPES = {
   moment: 'Etapă',
   decizie: 'Punct de decizie',
+  raspuns: 'Răspuns',
+  act: 'Act al AC',
   remediu: 'Cerere / cale de atac',
   solutie: 'Soluție',
   risc: 'Capcană',
@@ -31,6 +33,18 @@ export const TYPES = {
 };
 
 const ALL = ['ofertant', 'castigator', 'ac'];
+
+// Fazele graficului: fiecare etapă aparține exact unei faze (casetele de fundal din graficul 2D).
+export const PHASES = [
+  { id: 'doc', name: 'Faza 1 · Documentația de atribuire', nodes: ['p_anunt', 'd_doc', 'd_doc_da', 'd_doc_nu', 'a_clar', 'r_tardiv', 'p_clar', 'd_clar', 'd_clar_da', 'd_clar_nu', 'r_tardiv_clar', 'c_doc', 'c_clar', 'p_depunere'] },
+  { id: 'eval', name: 'Faza 2 · Evaluarea ofertelor și solicitările de clarificări', nodes: ['p_eval', 'p_sol', 'd_sol', 'p_prel', 'r_sol_fara', 'r_sol_modif', 'r_sol_tardiv', 'c_sol'] },
+  { id: 'rez', name: 'Faza 3 · Rezultatul procedurii', nodes: ['p_rezultat', 'a_acces', 'd_rez', 'd_castig', 'r_interv'] },
+  { id: 'cnsc', name: 'Faza 4 · Contestația și procedura la CNSC', nodes: ['c_rez', 'c_susp', 'r_caut', 'r_dubla', 'r_lipsuri', 'c_ac', 'i_interv', 'd_remediere', 's_renunt', 'c_proc'] },
+  { id: 'dec', name: 'Faza 5 · Decizia CNSC și executarea ei', nodes: ['c_dec', 's_exc', 's_nef', 's_anul', 's_anproc', 'd_pl', 'a_exec', 'k_noua'] },
+  { id: 'pl', name: 'Faza 6 · Plângerea la curtea de apel', nodes: ['pl', 'r_pl', 'pl_susp', 'pl_proc', 'pl_mod', 'pl_rejud', 'pl_resp', 'pl_def'] },
+  { id: 'x', name: 'Faza 7 · Căile extraordinare de atac', nodes: ['x_ca', 'x_rev', 'r_x'] },
+  { id: 'k', name: 'Faza 8 · Încheierea contractului', nodes: ['k_asteptare', 'k_f1', 'k_liber', 'k_blocaj', 'k_null', 'k_obligatie', 'k_semnat', 'k_schimbare', 'k_nul', 'k_desp', 'p3'] },
+];
 
 export const NODES = [
   // ───────── Procedura de atribuire (nivel 0)
@@ -57,13 +71,35 @@ export const NODES = [
     ref: ['II.2', 'II.2.2', 'II.1.2'], art: 'art. 8 alin. 2 L101',
   },
   {
+    id: 'd_doc_da', type: 'raspuns', lvl: 0, tr: 'cnsc', col: 1.7, roles: ['ofertant'],
+    t: 'Da — documentația pare restrictivă sau neclară', s: 'Da',
+    sum: 'Operatorul economic interesat poate contesta documentația, poate solicita clarificări și poate, totodată, să depună ofertă.',
+    ref: ['II.2.2'], art: 'art. 8 alin. 2 L101',
+  },
+  {
+    id: 'd_doc_nu', type: 'raspuns', lvl: 0, tr: 'cnsc', col: 1.7, dz: 2, roles: ['ofertant'],
+    t: 'Nu — documentația nu ridică probleme', s: 'Nu',
+    sum: 'Operatorul economic interesat depune ofertă până la data-limită.',
+    ref: ['I.2.3'],
+  },
+  {
+    id: 'a_clar', type: 'remediu', lvl: 0, tr: 'cnsc', col: 1.8, dz: -3, roles: ['ofertant'],
+    t: 'Solicitare de clarificări privind documentația de atribuire', s: 'Solicitare de clarificări',
+    sum: 'Operatorul economic interesat cere AC clarificări privind documentația de atribuire. Întrebările și răspunsurile se publică în SEAP.',
+    f: [
+      ['Anonimatul', 'Identitatea operatorului care a cerut clarificarea rămâne protejată (art. 160 alin. 3 L98).'],
+    ],
+    warn: 'Clarificarea e opțională. Solicitarea de clarificări nu oprește termenul de contestare a documentației de atribuire.',
+    ref: ['IV.2', 'I.3.1'], art: 'art. 160–161 L98',
+  },
+  {
     id: 'r_tardiv', type: 'risc', lvl: 0, tr: 'cnsc', col: 2.3, dz: 2.6, roles: ['ofertant'],
     t: 'Critici la documentație invocate abia la rezultat', s: 'Critici tardive',
     sum: 'Sunt respinse ca tardive: termenul pentru criticile privind documentația a curs de la publicarea ei.',
     ref: ['II.2.2'], art: 'art. 8 L101',
   },
   {
-    id: 'p_clar', type: 'moment', lvl: 0, tr: 'cnsc', col: 1.9, dz: -5, roles: ['ofertant', 'ac'],
+    id: 'p_clar', type: 'act', lvl: 0, tr: 'cnsc', col: 1.9, dz: -5, roles: ['ofertant', 'ac'],
     t: 'AC emite răspuns la solicitarea de clarificări privind documentația de atribuire', s: 'Răspuns la clarificări',
     sum: 'AC răspunde, în SEAP, la solicitarea de clarificări privind documentația de atribuire. Dacă răspunsul menține sau modifică o cerință, el poate fi atacat separat.',
     f: [
@@ -76,7 +112,7 @@ export const NODES = [
   },
   {
     id: 'd_clar', type: 'decizie', lvl: 0, tr: 'cnsc', col: 2.5, dz: -5, roles: ['ofertant'],
-    t: 'Răspunsul la clarificări pare nelegal?', s: 'Atac răspunsul?',
+    t: 'Răspunsul AC la solicitarea de clarificări pare restrictiv sau neclar?', s: 'Atac răspunsul?',
     sum: 'Operatorul economic interesat decide dacă atacă răspunsul AC la solicitarea de clarificări privind documentația de atribuire.',
     f: [
       ['Ce poate contesta', 'Doar răspunsul la solicitarea de clarificări sau răspunsul împreună cu documentația de atribuire, dacă termenul de contestare a documentației nu a expirat.'],
@@ -84,6 +120,18 @@ export const NODES = [
       ['Contestația și oferta', 'Operatorul economic interesat poate contesta doar documentația de atribuire, doar răspunsul la solicitarea de clarificări privind documentația sau pe amândouă și poate, totodată, să depună ofertă.'],
     ],
     ref: ['IV.2', 'II.2.2'], art: 'art. 8 alin. 1 lit. a–b L101',
+  },
+  {
+    id: 'd_clar_da', type: 'raspuns', lvl: 0, tr: 'cnsc', col: 2.6, dz: -5, roles: ['ofertant'],
+    t: 'Da — răspunsul AC pare restrictiv sau neclar', s: 'Da',
+    sum: 'Operatorul economic interesat poate contesta răspunsul și poate, totodată, să depună ofertă.',
+    ref: ['IV.2'], art: 'art. 8 alin. 1 lit. a–b L101',
+  },
+  {
+    id: 'd_clar_nu', type: 'raspuns', lvl: 0, tr: 'cnsc', col: 2.6, dz: -3, roles: ['ofertant'],
+    t: 'Nu — răspunsul AC nu ridică probleme', s: 'Nu',
+    sum: 'Operatorul economic interesat depune ofertă până la data-limită.',
+    ref: ['IV.2'],
   },
   {
     id: 'r_tardiv_clar', type: 'risc', lvl: 0, tr: 'cnsc', col: 2.4, dz: -8.5, roles: ['ofertant'],
@@ -111,7 +159,7 @@ export const NODES = [
     ref: ['I.2.3'], art: 'art. 193, 196, 209, 210 L98',
   },
   {
-    id: 'p_sol', type: 'moment', lvl: 0, tr: 'cnsc', col: 4.1, dz: -5.5, roles: ['ofertant', 'ac'],
+    id: 'p_sol', type: 'act', lvl: 0, tr: 'cnsc', col: 4.1, dz: -5.5, roles: ['ofertant', 'ac'],
     t: 'AC transmite o solicitare de clarificări', s: 'Solicitare de clarificări',
     sum: 'Pe parcursul evaluării, comisia poate transmite ofertanților solicitări de clarificări (art. 209 L98). Dacă ofertantul răspunde, evaluarea continuă.',
     f: [
@@ -302,7 +350,6 @@ export const NODES = [
     f: [
       ['Competența', 'CNSC, complet de trei membri, același pentru toate contestațiile din etapa de până la depunerea ofertelor (art. 17 alin. 1 lit. a).'],
       ['Termenul', '10 zile peste pragul UE și 7 zile sub prag, de la publicarea documentației în SEAP sau de la comunicare, dacă procedura se desfășoară fără publicare (art. 8 alin. 2).'],
-      ['Răspunsul la clarificări', 'Se poate contesta separat sau împreună cu documentația, dacă aceasta mai este în termen: 10 zile peste prag și 7 zile sub prag, de la publicarea răspunsului în SEAP ori de la comunicarea lui, în cazul procedurilor desfășurate fără publicare (art. 8 alin. 1 lit. a sau b, în funcție de prag).'],
       ['Contestația și oferta', 'Contestația nu împiedică depunerea ofertei: operatorul economic interesat poate contesta și, totodată, să depună ofertă.'],
       ['Cauțiunea', '2% din valoarea estimată, max. 35.000 lei sub prag și 220.000 lei peste prag, în cel mult 5 zile de la sesizarea CNSC (art. 61¹). Fără taxă de timbru.'],
       ['Conținutul', 'Art. 10: datele contestatorului, AC, obiectul contractului și anunțul din SEAP, actul atacat precis individualizat, ce se cere, motivarea în fapt și în drept, probele, semnătura.'],
@@ -312,6 +359,22 @@ export const NODES = [
     warn: 'Contestația nu suspendă procedura: termenul de depunere a ofertelor continuă să curgă. Pentru a o opri e nevoie de o cerere de suspendare.',
     calc: { zile: [10, 7], de: 'Data publicării documentației în SEAP' },
     ref: ['II.2', 'II.2.2', 'II.2.4–II.2.6', 'II.6'], art: 'art. 8, 10, 16, 17, 61¹ L101',
+  },
+  {
+    id: 'c_clar', type: 'remediu', lvl: 1, tr: 'cnsc', col: 2.9, dz: -5, roles: ['ofertant', 'ac'],
+    t: 'Contestație împotriva răspunsului la solicitarea de clarificări', s: 'Contestație · răspuns la clarificări',
+    sum: 'Se formulează înainte de data-limită de depunere a ofertelor și critică răspunsul AC la solicitarea de clarificări privind documentația de atribuire, dacă acesta menține sau modifică o cerință.',
+    f: [
+      ['Competența', 'CNSC, complet de trei membri, același pentru toate contestațiile din etapa de până la depunerea ofertelor (art. 17 alin. 1 lit. a).'],
+      ['Termenul', '10 zile peste prag și 7 zile sub prag, de la publicarea răspunsului în SEAP ori de la comunicarea lui, în cazul procedurilor de atribuire desfășurate fără publicare (art. 8 alin. 1 lit. a sau b, în funcție de prag).'],
+      ['Împreună cu documentația', 'Răspunsul poate fi contestat și împreună cu documentația de atribuire, dacă termenul de contestare a documentației nu a expirat.'],
+      ['Contestația și oferta', 'Contestația nu împiedică depunerea ofertei: operatorul economic interesat poate contesta și, totodată, să depună ofertă.'],
+      ['Cauțiunea', '2% din valoarea estimată, max. 35.000 lei sub prag și 220.000 lei peste prag, în cel mult 5 zile de la sesizarea CNSC (art. 61¹). Fără taxă de timbru.'],
+      ['Depunerea', 'La CNSC și, în același termen, la AC, sub sancțiunea tardivității (art. 16 alin. 1).'],
+    ],
+    warn: 'Contestația nu suspendă procedura: termenul de depunere a ofertelor continuă să curgă. Pentru a o opri e nevoie de o cerere de suspendare.',
+    calc: { zile: [10, 7], de: 'Data publicării răspunsului în SEAP' },
+    ref: ['IV.2', 'II.2.2', 'II.2.4–II.2.6', 'II.6'], art: 'art. 8 alin. 1 lit. a–b, 10, 16, 17, 61¹ L101',
   },
   {
     id: 'c_rez', type: 'remediu', lvl: 1, tr: 'cnsc', col: 6.5, roles: ALL,
@@ -608,21 +671,33 @@ export const NODES = [
 // al cincilea element, opțional: eticheta scurtă afișată pe hartă; fișa etapei arată eticheta completă
 export const EDGES = [
   ['p_anunt', 'd_doc', 'Analizezi documentația', 'flow'],
-  ['d_doc', 'c_doc', 'Da, contest la CNSC', 'choice'],
-  ['d_doc', 'p_depunere', 'Nu, depun ofertă', 'choice'],
-  ['d_doc', 'p_clar', 'Solicit clarificări privind documentația de atribuire', 'choice', 'Solicit clarificări'],
-  ['d_doc', 'r_tardiv', 'Nu contest acum, dar voi formula critici cu privire la documentație odată cu contestația împotriva rezultatului procedurii', 'risk', 'Nu contest acum, dar critic la rezultat'],
+  ['d_doc', 'd_doc_da', 'Da', 'choice'],
+  ['d_doc', 'd_doc_nu', 'Nu', 'choice'],
+  ['d_doc_da', 'c_doc', 'Contest documentația la CNSC', 'choice', 'Contest la CNSC'],
+  ['d_doc_da', 'a_clar', 'Solicit clarificări privind documentația de atribuire', 'choice', 'Solicit clarificări'],
+  ['d_doc_da', 'r_tardiv', 'Nu contest acum, dar voi formula critici cu privire la documentație odată cu contestația împotriva rezultatului procedurii', 'risk', 'Nu contest acum, dar critic la rezultat'],
+  ['d_doc_da', 'p_depunere', 'Depun ofertă (și pot contesta, totodată)', 'choice', 'Depun ofertă'],
+  ['d_doc_nu', 'p_depunere', 'Depun ofertă', 'flow'],
+  ['a_clar', 'p_clar', 'AC răspunde în SEAP', 'flow'],
   ['p_clar', 'd_clar', 'Analizezi răspunsul', 'flow'],
-  ['d_clar', 'c_doc', 'Da, contest la CNSC răspunsul (și documentația, dacă mai e în termen)', 'choice', 'Da, contest la CNSC'],
-  ['d_clar', 'p_depunere', 'Nu contest, depun ofertă', 'choice'],
-  ['d_clar', 'r_tardiv_clar', 'Nu contest acum, dar voi formula critici cu privire la răspunsul la solicitarea de clarificări odată cu contestația împotriva rezultatului procedurii', 'risk', 'Nu contest acum, dar critic la rezultat'],
+  ['d_clar', 'd_clar_da', 'Da', 'choice'],
+  ['d_clar', 'd_clar_nu', 'Nu', 'choice'],
+  ['d_clar_da', 'c_clar', 'Contest răspunsul la CNSC', 'choice', 'Contest la CNSC'],
+  ['d_clar_da', 'r_tardiv_clar', 'Nu contest acum, dar voi formula critici cu privire la răspunsul la solicitarea de clarificări odată cu contestația împotriva rezultatului procedurii', 'risk', 'Nu contest acum, dar critic la rezultat'],
+  ['d_clar_da', 'p_depunere', 'Depun ofertă (și pot contesta, totodată)', 'choice', 'Depun ofertă'],
+  ['d_clar_nu', 'p_depunere', 'Depun ofertă', 'flow'],
   ['c_doc', 'c_susp', 'Cer și suspendarea procedurii', 'choice'],
-  ['c_doc', 'p_depunere', 'Depun oferta în paralel', 'flow'],
   ['c_doc', 'c_ac', 'AC primește contestația', 'flow'],
   ['c_doc', 'i_interv', 'Alți operatori pot interveni', 'flow'],
   ['c_doc', 'r_caut', 'Nu constitui cauțiunea în 5 zile', 'risk'],
   ['c_doc', 'r_lipsuri', 'Nu completez lipsurile în 3 zile', 'risk'],
   ['c_doc', 'r_dubla', 'Atac același act și la tribunal', 'risk'],
+  ['c_clar', 'c_susp', 'Cer și suspendarea procedurii', 'choice'],
+  ['c_clar', 'c_ac', 'AC primește contestația', 'flow'],
+  ['c_clar', 'i_interv', 'Alți operatori pot interveni', 'flow'],
+  ['c_clar', 'r_caut', 'Nu constitui cauțiunea în 5 zile', 'risk'],
+  ['c_clar', 'r_lipsuri', 'Nu completez lipsurile în 3 zile', 'risk'],
+  ['c_clar', 'r_dubla', 'Atac același act și la tribunal', 'risk'],
   ['p_depunere', 'p_eval', 'Comisia evaluează ofertele', 'flow'],
   ['p_eval', 'p_sol', 'Comisia îmi cere clarificări', 'flow'],
   ['p_sol', 'd_sol', 'Analizez solicitarea', 'flow'],
@@ -716,8 +791,8 @@ export const EDGES = [
 ];
 
 export const PATHS = [
-  { id: 'doc', name: 'Atac documentația', nodes: ['p_anunt', 'd_doc', 'c_doc', 'c_susp', 'c_proc', 'c_dec', 's_anul', 'a_exec', 'p_depunere'] },
-  { id: 'clar', name: 'Atac răspunsul la clarificări', nodes: ['p_anunt', 'd_doc', 'p_clar', 'd_clar', 'c_doc', 'c_susp', 'c_proc', 'c_dec', 's_anul', 'a_exec', 'p_depunere'] },
+  { id: 'doc', name: 'Atac documentația', nodes: ['p_anunt', 'd_doc', 'd_doc_da', 'c_doc', 'c_susp', 'c_proc', 'c_dec', 's_anul', 'a_exec', 'p_depunere'] },
+  { id: 'clar', name: 'Atac răspunsul la clarificări', nodes: ['p_anunt', 'd_doc', 'd_doc_da', 'a_clar', 'p_clar', 'd_clar', 'd_clar_da', 'c_clar', 'c_susp', 'c_proc', 'c_dec', 's_anul', 'a_exec', 'p_depunere'] },
   { id: 'sol', name: 'Atac o solicitare de clarificări', nodes: ['p_depunere', 'p_eval', 'p_sol', 'd_sol', 'c_sol', 'c_susp', 'c_proc', 'c_dec'] },
   { id: 'rez', name: 'Pierd și atac rezultatul', nodes: ['p_rezultat', 'a_acces', 'd_rez', 'c_rez', 'c_ac', 'c_proc', 'c_dec', 's_nef', 'd_pl', 'pl', 'pl_susp', 'pl_proc', 'pl_mod', 'a_exec', 'k_noua'] },
   { id: 'cast', name: 'Câștig și apăr rezultatul', nodes: ['p_rezultat', 'd_castig', 'i_interv', 'c_proc', 'c_dec', 's_anul', 'd_pl', 'pl', 'pl_proc', 'pl_resp', 'pl_def'] },

@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
 <style>
-/* Layout: o hartă 3D pe toată suprafața, cu fișa etapei ca registru lateral (foaie de jos pe telefon). */
+/* Layout: graficul 2D pe toată suprafața, cu fișa etapei ca registru lateral (foaie de jos pe telefon). */
 :root {
   --bg: #E6EAEE;
   --surface: #F7F9FA;
@@ -14,14 +14,15 @@
   --edge: #7D8A97;
   --accent: #2446B5;
   --accent-ink: #FFFFFF;
-  --c-moment: #4A5764;
-  --c-decizie: #B0741A;
-  --c-remediu: #2446B5;
-  --c-solutie: #1D7656;
-  --c-risc: #BF352E;
-  --c-link: #7650AA;
-  --floor: #D3DAE1;
-  --floor-edge: #A9B5C1;
+  /* tipurile de etape: --c-* = contur și glifă, --b-* = fundalul casetei */
+  --c-moment: #B8407A; --b-moment: #FBE0EC;
+  --c-decizie: #3A8F33; --b-decizie: #D6F1D0;
+  --c-raspuns: #2F6FC4; --b-raspuns: #D5E6FC;
+  --c-act: #5F6872; --b-act: #DFE2E6;
+  --c-remediu: #A97F05; --b-remediu: #FBEDB8;
+  --c-solutie: #1F8378; --b-solutie: #D4EFEB;
+  --c-risc: #BF352E; --b-risc: #F8DAD8;
+  --c-link: #7650AA; --b-link: #E9E0F7;
   --warn-bg: #FBEDEC;
   --font-display: "Source Serif 4", "Iowan Old Style", Georgia, serif;
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
@@ -31,14 +32,18 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0E1318; --surface: #141B22; --surface-2: #1A232C; --ink: #E1E7ED; --muted: #8B98A6; --line: #2A3540; --edge: #6E7C8A;
-    --accent: #87A3FF; --accent-ink: #0E1318; --c-moment: #A4B1BF; --c-decizie: #E2A443; --c-remediu: #7D9BFF; --c-solutie: #4DBE8B;
-    --c-risc: #EF6F67; --c-link: #B590EE; --floor: #1A232C; --floor-edge: #34414E; --warn-bg: #2A1716; color-scheme: dark;
+    --accent: #87A3FF; --accent-ink: #0E1318; --warn-bg: #2A1716; color-scheme: dark;
+    --c-moment: #EE8DBB; --b-moment: #3A1F2D; --c-decizie: #7FCB76; --b-decizie: #1D331F; --c-raspuns: #84B4F5; --b-raspuns: #1A2A44;
+    --c-act: #A9B2BC; --b-act: #2A3038; --c-remediu: #E6C04F; --b-remediu: #382F13; --c-solutie: #5FC8B9; --b-solutie: #14302C;
+    --c-risc: #EF6F67; --b-risc: #3A1B1A; --c-link: #B590EE; --b-link: #2A2140;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0E1318; --surface: #141B22; --surface-2: #1A232C; --ink: #E1E7ED; --muted: #8B98A6; --line: #2A3540; --edge: #6E7C8A;
-  --accent: #87A3FF; --accent-ink: #0E1318; --c-moment: #A4B1BF; --c-decizie: #E2A443; --c-remediu: #7D9BFF; --c-solutie: #4DBE8B;
-  --c-risc: #EF6F67; --c-link: #B590EE; --floor: #1A232C; --floor-edge: #34414E; --warn-bg: #2A1716; color-scheme: dark;
+  --accent: #87A3FF; --accent-ink: #0E1318; --warn-bg: #2A1716; color-scheme: dark;
+  --c-moment: #EE8DBB; --b-moment: #3A1F2D; --c-decizie: #7FCB76; --b-decizie: #1D331F; --c-raspuns: #84B4F5; --b-raspuns: #1A2A44;
+  --c-act: #A9B2BC; --b-act: #2A3038; --c-remediu: #E6C04F; --b-remediu: #382F13; --c-solutie: #5FC8B9; --b-solutie: #14302C;
+  --c-risc: #EF6F67; --b-risc: #3A1B1A; --c-link: #B590EE; --b-link: #2A2140;
 }
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font-ui); display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
@@ -71,36 +76,52 @@ button, select, input { font: inherit; color: inherit; }
 .app { display: grid; grid-template-columns: minmax(0, 1fr) 400px; min-height: 0; }
 #viewport { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 #stage { position: absolute; inset: 0; }
-#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-#labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#g2d { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#g2d:active { cursor: grabbing; }
 #list { display: none; overflow: auto; padding: 18px 16px 40px; min-width: 0; }
 body[data-view="list"] #viewport { display: none; }
 body[data-view="list"] #list { display: block; }
 
-.lbl { position: absolute; left: 0; top: 0; translate: -50% 0; pointer-events: auto; cursor: pointer; white-space: nowrap; font-size: 11.5px; line-height: 1.25; padding: 2px 7px 2px 6px; border-radius: 4px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--ink); display: inline-flex; align-items: center; gap: 5px; transition: opacity .2s; }
-.lbl::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tc); flex: none; }
-.lbl.t-risc { font-size: 10.5px; color: var(--c-risc); border-color: color-mix(in srgb, var(--c-risc) 35%, var(--line)); }
-.lbl.t-decizie { font-weight: 600; }
-.lbl[data-lv="dim"] { opacity: .16; }
-.lbl[data-lv="mid"] { opacity: .7; }
-.lbl.cull { opacity: 0 !important; pointer-events: none; }
-.lbl.hov, .lbl:hover { border-color: var(--ink); opacity: 1; z-index: 2; }
-.lbl.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); opacity: 1; z-index: 3; }
-.lbl.sel::before { background: var(--accent-ink); }
-#labels[data-far="1"] .lbl { font-size: 10px; padding: 1px 5px; }
-#labels[data-far="1"] .lbl.t-risc:not(.sel):not(.hov) { display: none; }
-.t-moment { --tc: var(--c-moment); } .t-decizie { --tc: var(--c-decizie); } .t-remediu { --tc: var(--c-remediu); }
-.t-solutie { --tc: var(--c-solutie); } .t-risc { --tc: var(--c-risc); } .t-link { --tc: var(--c-link); }
-.flbl, .tlbl { position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap; }
-.flbl { font: 600 13px/1.2 var(--font-display); color: var(--ink); opacity: .78; translate: 0 -105%; }
-.flbl span { display: block; font: 500 10px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-.tlbl { font: 500 10px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); translate: 0 -50%; }
-.elbl { position: absolute; left: 0; top: 0; translate: -50% -100%; pointer-events: none; font-size: 11px; font-style: italic; background: var(--surface); color: var(--accent); border-radius: 3px; padding: 1px 6px; width: max-content; max-width: 240px; text-align: center; line-height: 1.35; box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
-.elbl.k-risk { color: var(--c-risc); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-risc) 30%, transparent); }
+/* graficul 2D */
+.t-moment { --tc: var(--c-moment); --tb: var(--b-moment); } .t-decizie { --tc: var(--c-decizie); --tb: var(--b-decizie); }
+.t-raspuns { --tc: var(--c-raspuns); --tb: var(--b-raspuns); } .t-act { --tc: var(--c-act); --tb: var(--b-act); }
+.t-remediu { --tc: var(--c-remediu); --tb: var(--b-remediu); } .t-solutie { --tc: var(--c-solutie); --tb: var(--b-solutie); }
+.t-risc { --tc: var(--c-risc); --tb: var(--b-risc); } .t-link { --tc: var(--c-link); --tb: var(--b-link); }
+.phase rect { fill: color-mix(in srgb, var(--surface) 70%, transparent); stroke: var(--line); stroke-width: 1.2; }
+.phase .ph-t { font: 600 15px var(--font-display); fill: var(--ink); }
+.phase[data-lv="dim"] { opacity: .45; }
+.nd { cursor: pointer; transition: opacity .15s; }
+.nd .shape { fill: var(--tb); stroke: var(--tc); stroke-width: 1.6; }
+.nd text { font: 500 12.5px var(--font-ui); fill: var(--ink); pointer-events: none; }
+.nd.t-decizie text { font-weight: 600; }
+.nd.t-raspuns text { font-weight: 600; fill: var(--tc); }
+.nd.t-risc text { fill: color-mix(in srgb, var(--c-risc) 75%, var(--ink)); }
+.nd:hover .shape, .nd:focus-visible .shape { stroke-width: 2.6; }
+.nd:focus { outline: none; }
+.nd.sel .shape { stroke: var(--accent); stroke-width: 3.2; }
+.nd.portal .shape { fill: var(--surface); stroke: var(--edge); stroke-dasharray: 4 3; stroke-width: 1.3; }
+.nd.portal text { font-weight: 400; fill: var(--muted); }
+.nd.portal:hover .shape { stroke: var(--accent); stroke-dasharray: none; }
+.nd[data-lv="dim"] { opacity: .2; }
+.nd[data-lv="mid"] { opacity: .75; }
+.ed { fill: none; stroke: var(--edge); stroke-width: 1.4; transition: opacity .15s; }
+.ed.k-choice { stroke-width: 1.7; }
+.ed.k-risk { stroke: var(--c-risc); }
+.ed.k-loop { stroke-dasharray: 5 4; }
+.ed.k-out { stroke: var(--c-link); stroke-dasharray: 2 3; }
+.ed.acc { stroke: var(--accent); stroke-width: 2.4; }
+.ed[data-lv="dim"], .el[data-lv="dim"] { opacity: .1; }
+.ed[data-lv="mid"], .el[data-lv="mid"] { opacity: .6; }
+.ah { fill: var(--edge); } .ah.k-risk { fill: var(--c-risc); } .ah.k-out { fill: var(--c-link); } .ah.k-acc { fill: var(--accent); }
+.el rect { fill: var(--bg); }
+.el text { font: italic 400 11px var(--font-ui); fill: var(--muted); }
+.el.k-risk text { fill: var(--c-risc); }
+.el.acc text { fill: var(--accent); font-weight: 500; }
 
-.cams { position: absolute; left: 16px; bottom: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
-.cams button { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 4px 10px; font-size: 12.5px; cursor: pointer; }
-.cams button:hover { border-color: var(--ink); }
+.tools { position: absolute; left: 16px; bottom: 16px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.tools button, .tools select { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 4px 10px; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+.tools button:hover, .tools select:hover { border-color: var(--ink); }
+.tools .zb { width: 30px; padding: 4px 0; font-size: 15px; line-height: 1; }
 .hint { position: absolute; right: 16px; bottom: 16px; font-size: 11.5px; color: var(--muted); background: color-mix(in srgb, var(--bg) 80%, transparent); padding: 2px 6px; border-radius: 4px; }
 
 /* panel */
@@ -205,10 +226,11 @@ body[data-view="list"] #list { display: block; }
   .brand p { display: none; }
   .ctrls { gap: 6px 10px; }
   .fl, .tg { font-size: 12.5px; }
-  .cams { left: 10px; bottom: 10px; }
-  .cams button { padding: 3px 8px; font-size: 12px; }
+  .tools { left: 10px; bottom: 10px; }
+  .tools button, .tools select { padding: 3px 8px; font-size: 12px; }
+  .tools select { max-width: 150px; }
 }
-@media (prefers-reduced-motion: reduce) { .lbl { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .nd, .ed { transition: none; } }
 </style>
 
 <header class="bar">
@@ -219,7 +241,7 @@ body[data-view="list"] #list { display: block; }
   <nav class="nav" aria-label="Secțiuni"><a href="./">Ghidul</a><a href="grafic.html" aria-current="page">Graficul</a><a href="despre.html">Despre</a></nav>
   <div class="ctrls">
     <div class="seg" role="radiogroup" aria-label="Vedere">
-      <label><input type="radio" name="view" id="view-3d" value="3d" checked><span>3D</span></label>
+      <label><input type="radio" name="view" id="view-graf" value="graf" checked><span>Grafic</span></label>
       <label><input type="radio" name="view" id="view-list" value="list"><span>Listă</span></label>
     </div>
     <label class="fl" for="role">Rol
@@ -239,13 +261,13 @@ body[data-view="list"] #list { display: block; }
 <main class="app">
   <div id="viewport">
     <div id="stage"></div>
-    <div id="labels"></div>
-    <div class="cams" aria-label="Unghiul camerei">
-      <button type="button" data-cam="ansamblu">Ansamblu</button>
-      <button type="button" data-cam="fata">Din față</button>
-      <button type="button" data-cam="sus">De sus</button>
+    <div class="tools" aria-label="Navigare în grafic">
+      <button type="button" class="zb" id="zoom-in" aria-label="Mărește">+</button>
+      <button type="button" class="zb" id="zoom-out" aria-label="Micșorează">−</button>
+      <button type="button" id="fit">Tot graficul</button>
+      <select id="phase-go" aria-label="Mergi la o fază"></select>
     </div>
-    <div class="hint">Trage pentru a roti · rotița sau două degete pentru zoom · clic dreapta pentru deplasare</div>
+    <div class="hint">Trage sau derulează pentru deplasare · Ctrl + rotița ori două degete pentru zoom</div>
   </div>
   <section id="list" aria-label="Toate etapele, ca listă"></section>
   <aside id="panel" aria-label="Fișa etapei">

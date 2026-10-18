@@ -4,7 +4,7 @@ import { UPDATED } from './src/site.js';
 const G = '../ghid/';
 const toc = fs.readFileSync(G + 'toc.json', 'utf8');
 const body = fs.readFileSync(G + 'body.html', 'utf8');
-const pri = { remediu: 0, decizie: 1, moment: 2, solutie: 3, risc: 4, link: 5 };
+const pri = { remediu: 0, decizie: 1, moment: 2, act: 3, solutie: 4, risc: 5, raspuns: 6, link: 7 };
 const map = {};
 [...NODES].sort((a, b) => pri[a.type] - pri[b.type]).forEach((n) => n.ref.forEach((r) => {
   const k = r.split('–')[0];
