@@ -14,12 +14,13 @@ Conținutul provine EXCLUSIV din ghidul lui Serban. Nu adăuga reguli juridice d
 ## Structura
 - `harta/src/data.js` — sursa de adevăr pentru hartă:
   - `PHASES` — fazele (casetele graficului 2D); fiecare etapă aparține exact unei faze.
-  - `NODES` — etapele. Câmpuri: `id`, `type` (moment, decizie, raspuns — Da/Nu, act — act al AC, remediu, solutie, risc, link), `lvl` (0 procedura, 1 CNSC, 2 curtea de apel, 3 căi extraordinare), `tr` (pista: contract, cnsc), `col`, `dz` (pozițiile din vechiul grafic 3D; graficul 2D nu le mai folosește, le păstrăm pentru o eventuală variantă 3D), `roles` (ofertant, castigator, ac), `t` (titlu), `s` (eticheta scurtă), `sum`, `f` (perechi [etichetă, text]), `warn`, `calc` (`{zile:[peste,sub], de:'...'}` pentru calculatorul de termene), `ref` (secțiunile din ghid), `art`.
-  - `EDGES` — legăturile, ca `[from, to, eticheta, kind, eticheta_scurtă?]`, cu kind: flow, choice, risk, loop, out. Eticheta scurtă (opțională) apare pe hartă; fișa etapei arată eticheta completă.
-  - `PATHS` — traseele marcate. Fiecare pereche consecutivă de etape trebuie să existe și ca muchie în `EDGES`.
+  - `NODES` — etapele. Câmpuri: `id`, `type` (moment, decizie — întrebare, raspuns — Da/Nu, act — act al AC, remediu, solutie, risc, faza — trimitere la altă fază, cu `go`: etapa/etapele la care duce), `pos` (centrul casetei în schema draw.io a lui Serban; graficul așază fazele după el), `roles` (ofertant, castigator, ac), `t` (titlu), `s` (eticheta scurtă), `sum`, `f` (perechi [etichetă, text]), `warn`, `calc` (`{zile:[peste,sub], de:'...'}` pentru calculatorul de termene), `ref` (secțiunile din ghid), `art`.
+  - `EDGES` — legăturile, ca `[from, to, eticheta, kind, hint?]`, cu kind: flow, choice, risk, loop (revenire, linie întreruptă). Eticheta poate avea mai multe rânduri (`\n`) și poate lipsi. `hint` vine din draw.io: `w` = puncte intermediare, `o`/`i` = punctele de ieșire/intrare pe casete (fracții 0–1), `lp` = poziția etichetei pe săgeată (−1…1). Unele săgeți sunt intenționat duble, ca în desen.
+  - Sursa structurii: schemele draw.io ale lui Serban (`Ghid_AP_diagrame_v_fin.drawio`, câte o pagină pe fază). Orice schimbare de structură se discută cu el; nu se corectează nimic fără acordul lui.
+  - `PATHS` — traseele marcate. Fiecare pereche consecutivă de etape trebuie să existe ca muchie în `EDGES` sau să fie trecerea dintr-o etapă `faza` în etapa ei `go`.
   - `HOLIDAYS` — sărbătorile legale din 2026–2027, folosite de calculatorul de termene (art. 5 L101: ziua evenimentului nu se numără; termenul se prelungește dacă ultima zi e nelucrătoare).
-- `harta/src/main.js` — graficul 2D. Fiecare fază se așază separat (dagre, de sus în jos), iar fazele se stivuiesc vertical. Legăturile unei etape spre altă fază devin un singur „portal” pe fază-destinație. O capcană cu mai multe surse se desenează lângă fiecare sursă. Punctele de decizie sunt întrebări cu răspunsuri Da/Nu (etape `raspuns`), din care pleacă variantele, după schema lui Serban pentru Faza 1. Deplasare: tragere sau derulare; zoom: Ctrl + rotița sau două degete. Dacă URL-ul are `#<id_etapă>`, graficul deschide direct acea etapă.
-- `harta/src/page.html` — CSS-ul și markup-ul graficului. Culorile sunt tokens, cu temă deschisă și închisă; fiecare tip de etapă are `--c-*` (contur) și `--b-*` (fundal): roz = etapă, verde = întrebare, albastru = răspuns Da/Nu, gri = act al AC, galben = cerere / cale de atac, roșu = capcană.
+- `harta/src/main.js` — graficul 2D. Fiecare fază se așază după pozițiile din schema lui Serban (`pos`, mărite cu `SX`/`SY` ca textul să încapă), iar fazele se stivuiesc vertical; săgețile sunt ortogonale, cu punctele de ieșire/intrare și punctele intermediare din draw.io. O fază fără `pos` se așază automat (dagre). Trimiterile portocalii (`faza`) duc, la clic, la etapa `go`. Deplasare: tragere sau derulare; zoom: Ctrl + rotița sau două degete. Dacă URL-ul are `#<id_etapă>`, graficul deschide direct acea etapă.
+- `harta/src/page.html` — CSS-ul și markup-ul graficului. Culorile sunt tokens, cu temă deschisă și închisă; fiecare tip de etapă are `--c-*` (contur) și `--b-*` (fundal), în paleta din schemele lui Serban: violet = etapă, verde (hexagon) = întrebare, albastru = Da/Nu, gri = act al AC, galben = acțiune / act procedural / soluție, roșu = capcană, portocaliu = trimitere la altă fază.
 - `harta/build.mjs` → `harta/out/harta.html` (pachet esbuild, inclus în pagină).
 - `harta/build_ghid.mjs` → `harta/out/ghid.html`. Adaugă butoanele „Vezi pe hartă”, legând secțiunile ghidului de etapele hărții prin `ref`.
 - `harta/build_site.mjs` → `harta/site/` (ghidul devine `index.html`, graficul `grafic.html`). Fonturile sunt găzduite local, din @fontsource, ca să nu se încarce nimic de pe Google (motiv GDPR). Tot aici se adaugă meta-tagurile, favicon-ul și pagina 404.
@@ -49,7 +50,7 @@ Sursa este documentul Claude Docs „Ghid practic — Litigiile în materia achi
 
 ## Stadiu (3.10.2026)
 Făcut:
-- graficul 2D pentru Partea II (67 de etape, 118 legături, 6 trasee, 8 faze, calculator de termene, filtru după rol, vedere listă); Faza 1 restructurată după schema lui Serban (Da/Nu, solicitarea de clarificări ca etapă, contestație separată împotriva răspunsului la clarificări); inclusiv ramura solicitării de clarificări privind documentația și ramura solicitării de clarificări din evaluare (art. 209 L98; IV.3);
+- graficul 2D pentru Partea II refăcut integral după schemele draw.io ale lui Serban (131 de etape, 163 de legături, 8 faze, 6 trasee); Faza 4 începe cu etapa generală „Contestația la CNSC”, comună tuturor contestațiilor;
 - calea judiciară (tribunal, recurs) a fost scoasă din hartă la cererea lui Serban: nu e de interes practic pentru un avocat la început de drum;
 - pagina „Despre” (prezentarea lui Serban, data actualizării, contact); data actualizării se setează o singură dată, în `harta/src/site.js`;
 - pagina Ghidul, completă (Părțile I–IV și anexele), cu cele 8 diagrame;
@@ -60,5 +61,5 @@ De făcut sau de discutat cu Serban:
 - harta pentru Partea III (executare, nulitate, despăgubiri, suspendare după semnare) și, eventual, traseele din Partea IV (scenariile CNAIR / Alfa–Beta);
 - Serban trebuie să verifice: ramificările deduse („nimeni nu atacă decizia”, „contractul fusese deja semnat”); etichetele scurte;
 - domeniul propriu, încă neales, legat la Netlify prin Domain management;
-- Serban revizuiește graficul fază cu fază (Faza 1 e făcută); fișa de verificare PDF se generează din `data.js` (scriptul nu e încă în repository);
+- Serban verifică fișele etapelor noi sau modificate (PDF „Fișele etapelor din grafic”) înainte de publicarea pe `main`;
 - o eventuală variantă 3D, după ce toate fazele sunt corectate.

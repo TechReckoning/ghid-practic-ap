@@ -15,14 +15,15 @@
   --accent: #2446B5;
   --accent-ink: #FFFFFF;
   /* tipurile de etape: --c-* = contur și glifă, --b-* = fundalul casetei */
-  --c-moment: #B8407A; --b-moment: #FBE0EC;
-  --c-decizie: #3A8F33; --b-decizie: #D6F1D0;
-  --c-raspuns: #2F6FC4; --b-raspuns: #D5E6FC;
-  --c-act: #5F6872; --b-act: #DFE2E6;
-  --c-remediu: #A97F05; --b-remediu: #FBEDB8;
-  --c-solutie: #1F8378; --b-solutie: #D4EFEB;
-  --c-risc: #BF352E; --b-risc: #F8DAD8;
-  --c-link: #7650AA; --b-link: #E9E0F7;
+  /* paleta din schemele lui Serban (draw.io) */
+  --c-moment: #9673A6; --b-moment: #E1D5E7;
+  --c-decizie: #82B366; --b-decizie: #D5E8D4;
+  --c-raspuns: #6C8EBF; --b-raspuns: #DAE8FC;
+  --c-act: #666666; --b-act: #F5F5F5;
+  --c-remediu: #D6B656; --b-remediu: #FFF2CC;
+  --c-solutie: #D6B656; --b-solutie: #FFF2CC;
+  --c-risc: #B85450; --b-risc: #F8CECC;
+  --c-faza: #D79B00; --b-faza: #FFE6CC;
   --warn-bg: #FBEDEC;
   --font-display: "Source Serif 4", "Iowan Old Style", Georgia, serif;
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
@@ -33,17 +34,17 @@
   :root:not([data-theme="light"]) {
     --bg: #0E1318; --surface: #141B22; --surface-2: #1A232C; --ink: #E1E7ED; --muted: #8B98A6; --line: #2A3540; --edge: #6E7C8A;
     --accent: #87A3FF; --accent-ink: #0E1318; --warn-bg: #2A1716; color-scheme: dark;
-    --c-moment: #EE8DBB; --b-moment: #3A1F2D; --c-decizie: #7FCB76; --b-decizie: #1D331F; --c-raspuns: #84B4F5; --b-raspuns: #1A2A44;
-    --c-act: #A9B2BC; --b-act: #2A3038; --c-remediu: #E6C04F; --b-remediu: #382F13; --c-solutie: #5FC8B9; --b-solutie: #14302C;
-    --c-risc: #EF6F67; --b-risc: #3A1B1A; --c-link: #B590EE; --b-link: #2A2140;
+    --c-moment: #C2A3D1; --b-moment: #2E2436; --c-decizie: #9CCB80; --b-decizie: #1F2E1C; --c-raspuns: #8FB2E6; --b-raspuns: #1B2638;
+    --c-act: #A9B0B8; --b-act: #262B31; --c-remediu: #E3C56A; --b-remediu: #352D14; --c-solutie: #E3C56A; --b-solutie: #352D14;
+    --c-risc: #E58A85; --b-risc: #3A1F1E; --c-faza: #F0B240; --b-faza: #3A2A10;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0E1318; --surface: #141B22; --surface-2: #1A232C; --ink: #E1E7ED; --muted: #8B98A6; --line: #2A3540; --edge: #6E7C8A;
   --accent: #87A3FF; --accent-ink: #0E1318; --warn-bg: #2A1716; color-scheme: dark;
-  --c-moment: #EE8DBB; --b-moment: #3A1F2D; --c-decizie: #7FCB76; --b-decizie: #1D331F; --c-raspuns: #84B4F5; --b-raspuns: #1A2A44;
-  --c-act: #A9B2BC; --b-act: #2A3038; --c-remediu: #E6C04F; --b-remediu: #382F13; --c-solutie: #5FC8B9; --b-solutie: #14302C;
-  --c-risc: #EF6F67; --b-risc: #3A1B1A; --c-link: #B590EE; --b-link: #2A2140;
+  --c-moment: #C2A3D1; --b-moment: #2E2436; --c-decizie: #9CCB80; --b-decizie: #1F2E1C; --c-raspuns: #8FB2E6; --b-raspuns: #1B2638;
+  --c-act: #A9B0B8; --b-act: #262B31; --c-remediu: #E3C56A; --b-remediu: #352D14; --c-solutie: #E3C56A; --b-solutie: #352D14;
+  --c-risc: #E58A85; --b-risc: #3A1F1E; --c-faza: #F0B240; --b-faza: #3A2A10;
 }
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font-ui); display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
@@ -86,7 +87,7 @@ body[data-view="list"] #list { display: block; }
 .t-moment { --tc: var(--c-moment); --tb: var(--b-moment); } .t-decizie { --tc: var(--c-decizie); --tb: var(--b-decizie); }
 .t-raspuns { --tc: var(--c-raspuns); --tb: var(--b-raspuns); } .t-act { --tc: var(--c-act); --tb: var(--b-act); }
 .t-remediu { --tc: var(--c-remediu); --tb: var(--b-remediu); } .t-solutie { --tc: var(--c-solutie); --tb: var(--b-solutie); }
-.t-risc { --tc: var(--c-risc); --tb: var(--b-risc); } .t-link { --tc: var(--c-link); --tb: var(--b-link); }
+.t-risc { --tc: var(--c-risc); --tb: var(--b-risc); } .t-faza { --tc: var(--c-faza); --tb: var(--b-faza); }
 .phase rect { fill: color-mix(in srgb, var(--surface) 70%, transparent); stroke: var(--line); stroke-width: 1.2; }
 .phase .ph-t { font: 600 15px var(--font-display); fill: var(--ink); }
 .phase[data-lv="dim"] { opacity: .45; }
@@ -94,8 +95,10 @@ body[data-view="list"] #list { display: block; }
 .nd .shape { fill: var(--tb); stroke: var(--tc); stroke-width: 1.6; }
 .nd text { font: 500 12.5px var(--font-ui); fill: var(--ink); pointer-events: none; }
 .nd.t-decizie text { font-weight: 600; }
-.nd.t-raspuns text { font-weight: 600; fill: var(--tc); }
-.nd.t-risc text { fill: color-mix(in srgb, var(--c-risc) 75%, var(--ink)); }
+.nd.t-raspuns text { font-weight: 600; }
+.nd.t-risc text { fill: color-mix(in srgb, var(--c-risc) 60%, var(--ink)); }
+.nd.t-raspuns text { fill: var(--ink); }
+.nd.t-faza text { fill: var(--ink); font-weight: 500; }
 .nd:hover .shape, .nd:focus-visible .shape { stroke-width: 2.6; }
 .nd:focus { outline: none; }
 .nd.sel .shape { stroke: var(--accent); stroke-width: 3.2; }
@@ -166,7 +169,7 @@ body[data-view="list"] #list { display: block; }
 .legend li b::after { content: " — "; font-weight: 400; color: var(--muted); }
 .legend .g { grid-row: span 1; padding-top: 2px; }
 .legend li { display: block; }
-.legend li .g { display: inline-block; margin-right: 6px; }
+.legend li .g { display: inline-block; margin-right: 8px; width: 18px; height: 12px; vertical-align: -1px; border: 1.5px solid var(--tc); background: var(--tb); border-radius: 3px; font-size: 0; }
 .abbr { margin: 0; font-size: 12.5px; color: var(--muted); }
 .abbr b { color: var(--ink); font-weight: 600; }
 .disc { margin: 0; font-size: 12px; color: var(--muted); padding-top: 10px; border-top: 1px solid var(--line); }

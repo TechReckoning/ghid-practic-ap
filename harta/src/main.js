@@ -4,7 +4,7 @@ import { UPDATED } from './site.js';
 
 // ───────────────────────── model
 const byId = Object.fromEntries(NODES.map((n) => [n.id, n]));
-const edges = EDGES.map(([from, to, label, kind, short], i) => ({ i, from, to, label, kind, short: short || label }));
+const edges = EDGES.map(([from, to, label, kind, hint], i) => ({ i, from, to, label: label || '', kind, short: label || '', hint: hint || {} }));
 const outE = {}, inE = {};
 NODES.forEach((n) => { outE[n.id] = []; inE[n.id] = []; });
 edges.forEach((e) => { outE[e.from].push(e); inE[e.to].push(e); });
@@ -28,7 +28,7 @@ const el = (tag, attrs = {}, parent) => {
   if (parent) parent.appendChild(x);
   return x;
 };
-const TYPE_GLYPH = { moment: '■', decizie: '◆', raspuns: '●', act: '■', remediu: '▮', solutie: '●', risc: '▼', link: '◎' };
+const TYPE_GLYPH = { moment: '■', decizie: '⬢', raspuns: '●', act: '■', remediu: '■', solutie: '■', risc: '▲', faza: '➜' };
 
 // ───────────────────────── text measurement & wrapping
 const mctx = document.createElement('canvas').getContext('2d');
@@ -56,7 +56,7 @@ const itemsOf = {}; // id etapă -> [chei]
 function boxFor(n) {
   if (n.type === 'raspuns') return { lines: [n.s], w: 56, h: 30 };
   const font = n.type === 'decizie' ? F_DEC : F_NODE;
-  const maxW = n.type === 'decizie' ? 200 : 180;
+  const maxW = n.type === 'decizie' ? 170 : 160;
   const lines = wrap(n.t, maxW, font);
   const tw = Math.max(...lines.map((l) => measure(l, font)));
   const padX = n.type === 'decizie' ? 34 : 14;
@@ -73,7 +73,7 @@ const riskCopied = (id) => byId[id].type === 'risc' && !(riskIn[id] === 1 && inE
 function portalLabel(it) { return it.targets.length === 1 ? `→ ${PHASES[it.phaseTo].name.split(' · ')[0]} · ${byId[it.targets[0]].s}` : `→ ${PHASES[it.phaseTo].name}`; }
 function layoutPhase(P, pi) {
   const g = new dagre.graphlib.Graph({ multigraph: true });
-  g.setGraph({ rankdir: 'TB', nodesep: 26, ranksep: 38, edgesep: 12, marginx: 0, marginy: 0 });
+  g.setGraph({ rankdir: 'TB', nodesep: 30, ranksep: 34, edgesep: 16, marginx: 0, marginy: 0, ranker: 'network-simplex' });
   g.setDefaultEdgeLabel(() => ({}));
   const local = {};
   const add = (key, n) => {
@@ -108,15 +108,95 @@ function layoutPhase(P, pi) {
   });
   Object.entries(groups).forEach(([gk, G]) => {
     const e = G.edges[0];
-    const multi = G.edges.length > 1;
-    const showLabel = !multi && byId[e.to].type !== 'raspuns';
-    const lines = showLabel ? wrap(e.short, 150, F_EDGE) : [];
-    const lw = lines.length ? Math.max(...lines.map((l) => measure(l, F_EDGE))) + 10 : 0;
-    const kind = multi ? 'flow' : e.kind;
-    g.setEdge(G.from, G.to, { group: G, kind, lines, width: lw, height: lines.length ? lines.length * ELH + 4 : 0, labelpos: 'c', weight: kind === 'loop' ? 0 : kind === 'risk' ? 1 : 2 }, gk);
+    const texts = G.edges.flatMap((x) => (x.label ? x.label.split('\n') : []));
+    const lines = texts.flatMap((t) => wrap(t, 170, F_EDGE));
+    const lw = lines.length ? Math.max(...lines.map((l) => measure(l, F_EDGE))) + 12 : 0;
+    const kind = e.kind;
+    g.setEdge(G.from, G.to, { group: G, kind, lines, width: lw, height: lines.length ? lines.length * ELH + 6 : 0, labelpos: 'c', weight: kind === 'loop' ? 0 : kind === 'risk' ? 1 : 2, minlen: 1 }, gk);
   });
-  dagre.layout(g);
+  if (P.nodes.every((id) => byId[id].pos)) placeFixed(g, local); else dagre.layout(g);
   return { g, local };
+}
+// Așezarea din schemele draw.io ale lui Serban: pozițiile casetelor (pos), punctele intermediare ale săgeților (w)
+// și locul etichetelor (lp), cu distanțele mărite ca textul să încapă în casete lizibile.
+const SX = 1.65, SY = 1.3;
+function pointAt(poly, t) {
+  const seg = []; let tot = 0;
+  for (let i = 1; i < poly.length; i++) { const l = Math.hypot(poly[i].x - poly[i - 1].x, poly[i].y - poly[i - 1].y); seg.push(l); tot += l; }
+  let d = tot * Math.max(0, Math.min(1, t));
+  for (let i = 0; i < seg.length; i++) {
+    if (d <= seg[i] || i === seg.length - 1) { const k = seg[i] ? d / seg[i] : 0; return { x: poly[i].x + (poly[i + 1].x - poly[i].x) * k, y: poly[i].y + (poly[i + 1].y - poly[i].y) * k }; }
+    d -= seg[i];
+  }
+  return poly[0];
+}
+// Traseu ortogonal între două casete, ca în draw.io: pleacă din punctul de ieșire ales pe caseta-sursă (o),
+// intră prin punctul de intrare ales pe caseta-țintă (i) și trece prin punctele intermediare (wps).
+function port(N, f, toward, preferV) {
+  if (f) {
+    const [fx, fy] = f;
+    const x = N.x - N.width / 2 + fx * N.width, y = N.y - N.height / 2 + fy * N.height;
+    const v = fy <= 0.01 || fy >= 0.99 ? true : fx <= 0.01 || fx >= 0.99 ? false : Math.abs(toward.y - N.y) > Math.abs(toward.x - N.x);
+    return { x, y, v };
+  }
+  const dx = toward.x - N.x, dy = toward.y - N.y;
+  if (Math.abs(dy) > N.height / 2 + 4 && (preferV || Math.abs(dy) * 1.2 >= Math.abs(dx) - N.width / 2)) return { x: N.x, y: N.y + Math.sign(dy) * N.height / 2, v: true };
+  return { x: N.x + Math.sign(dx || 1) * N.width / 2, y: N.y, v: false };
+}
+function fixedRoute(A, B, wps, o, inn) {
+  const a = port(A, o, wps[0] || B);
+  // fără punct de intrare fixat: dacă săgeata vine pe verticală, intră prin latura de sus/jos (ca în draw.io)
+  const b = port(B, inn, wps[wps.length - 1] || a, wps.length ? false : a.v);
+  const poly = [{ x: a.x, y: a.y }];
+  let vert = a.v;
+  const go = (q) => {
+    const p = poly[poly.length - 1];
+    if (Math.abs(p.x - q.x) < 1) { poly.push({ x: q.x, y: q.y }); vert = true; return; }
+    if (Math.abs(p.y - q.y) < 1) { poly.push({ x: q.x, y: q.y }); vert = false; return; }
+    if (vert) { poly.push({ x: p.x, y: q.y }, { x: q.x, y: q.y }); vert = false; } else { poly.push({ x: q.x, y: p.y }, { x: q.x, y: q.y }); vert = true; }
+  };
+  wps.forEach(go);
+  const p = poly[poly.length - 1];
+  if (Math.abs(p.x - b.x) < 1 || Math.abs(p.y - b.y) < 1) poly.push({ x: b.x, y: b.y });
+  else if (vert && b.v) {
+    // ca în draw.io: ramificația se face imediat după caseta-sursă (dacă nu sunt puncte intermediare)
+    const my = poly.length === 1 ? p.y + Math.sign(b.y - p.y) * Math.min(26, Math.abs(b.y - p.y) / 2) : (p.y + b.y) / 2;
+    poly.push({ x: p.x, y: my }, { x: b.x, y: my }, { x: b.x, y: b.y });
+  } else if (!vert && !b.v) {
+    const mx = poly.length === 1 ? p.x + Math.sign(b.x - p.x) * Math.min(26, Math.abs(b.x - p.x) / 2) : (p.x + b.x) / 2;
+    poly.push({ x: mx, y: p.y }, { x: mx, y: b.y }, { x: b.x, y: b.y });
+  }
+  else if (vert) poly.push({ x: p.x, y: b.y }, { x: b.x, y: b.y });
+  else poly.push({ x: b.x, y: p.y }, { x: b.x, y: b.y });
+  return poly.filter((q, k) => k === 0 || Math.abs(q.x - poly[k - 1].x) > 0.5 || Math.abs(q.y - poly[k - 1].y) > 0.5);
+}
+function placeFixed(g, local) {
+  g.nodes().forEach((k) => { const n = byId[local[k].id]; const q = g.node(k); q.x = n.pos[0] * SX; q.y = n.pos[1] * SY; });
+  g.edges().forEach((ed) => {
+    const L = g.edge(ed);
+    const hint = L.group.edges.find((x) => x.label)?.hint || L.group.edges[0].hint;
+    const wps = (hint.w || []).map(([x, y]) => ({ x: x * SX, y: y * SY }));
+    L.poly = fixedRoute(g.node(ed.v), g.node(ed.w), wps, hint.o, hint.i);
+    const p = pointAt(L.poly, ((hint.lp ?? 0) + 1) / 2);
+    L.x = p.x; L.y = p.y;
+  });
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const inc = (x, y, w = 0, h = 0) => { x0 = Math.min(x0, x - w / 2); x1 = Math.max(x1, x + w / 2); y0 = Math.min(y0, y - h / 2); y1 = Math.max(y1, y + h / 2); };
+  g.nodes().forEach((k) => { const q = g.node(k); inc(q.x, q.y, q.width, q.height); });
+  g.edges().forEach((ed) => { const L = g.edge(ed); L.poly.forEach((q) => inc(q.x, q.y)); if (L.lines.length) inc(L.x, L.y, L.width, L.height); });
+  g.nodes().forEach((k) => { const q = g.node(k); q.x -= x0; q.y -= y0; });
+  g.edges().forEach((ed) => { const L = g.edge(ed); L.poly.forEach((q) => { q.x -= x0; q.y -= y0; }); L.x -= x0; L.y -= y0; });
+  Object.assign(g.graph(), { width: x1 - x0, height: y1 - y0 });
+}
+function roundPath(P) {
+  let d = `M${P[0].x.toFixed(1)},${P[0].y.toFixed(1)}`;
+  for (let i = 1; i < P.length - 1; i++) {
+    const a = P[i - 1], b = P[i], c = P[i + 1];
+    const r = Math.min(7, Math.hypot(b.x - a.x, b.y - a.y) / 2, Math.hypot(c.x - b.x, c.y - b.y) / 2);
+    const ux = Math.sign(b.x - a.x), uy = Math.sign(b.y - a.y), vx = Math.sign(c.x - b.x), vy = Math.sign(c.y - b.y);
+    d += `L${(b.x - ux * r).toFixed(1)},${(b.y - uy * r).toFixed(1)}Q${b.x.toFixed(1)},${b.y.toFixed(1)} ${(b.x + vx * r).toFixed(1)},${(b.y + vy * r).toFixed(1)}`;
+  }
+  return d + `L${P[P.length - 1].x.toFixed(1)},${P[P.length - 1].y.toFixed(1)}`;
 }
 function buildLayout() {
   const PAD = 26, TITLE = 40, GAP = 34;
@@ -131,6 +211,34 @@ function buildLayout() {
   });
   bounds = { x: 0, y: 0, w: W + 60, h: y + 30 - GAP };
   return parts;
+}
+
+// Săgeată ortogonală (segmente verticale și orizontale, colțuri ușor rotunjite), prin punctele date de dagre.
+// Pleacă din mijlocul laturii de jos a casetei-sursă și intră prin mijlocul laturii de sus a casetei-țintă
+// (invers, dacă ținta e mai sus).
+function orth(points, A, B, ox, oy) {
+  const down = B.y >= A.y;
+  const p0 = { x: A.x, y: A.y + (down ? A.height / 2 : -A.height / 2) };
+  const pn = { x: B.x, y: B.y + (down ? -B.height / 2 : B.height / 2) };
+  const mid = points.slice(1, -1);
+  const pts = [p0, ...mid, pn];
+  const poly = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    const a = poly[poly.length - 1], b = pts[i];
+    if (Math.abs(a.x - b.x) < 0.5) { poly.push(b); continue; }
+    const my = i === pts.length - 1 ? b.y - (down ? 14 : -14) : (a.y + b.y) / 2;
+    poly.push({ x: a.x, y: my }, { x: b.x, y: my }, b);
+  }
+  const P = poly.filter((q, i) => i === 0 || Math.abs(q.x - poly[i - 1].x) > 0.5 || Math.abs(q.y - poly[i - 1].y) > 0.5).map((q) => ({ x: q.x + ox, y: q.y + oy }));
+  let d = `M${P[0].x.toFixed(1)},${P[0].y.toFixed(1)}`;
+  for (let i = 1; i < P.length - 1; i++) {
+    const a = P[i - 1], b = P[i], c = P[i + 1];
+    const r = Math.min(7, Math.hypot(b.x - a.x, b.y - a.y) / 2, Math.hypot(c.x - b.x, c.y - b.y) / 2);
+    const ux = Math.sign(b.x - a.x), uy = Math.sign(b.y - a.y), vx = Math.sign(c.x - b.x), vy = Math.sign(c.y - b.y);
+    d += `L${(b.x - ux * r).toFixed(1)},${(b.y - uy * r).toFixed(1)}Q${b.x.toFixed(1)},${b.y.toFixed(1)} ${(b.x + vx * r).toFixed(1)},${(b.y + vy * r).toFixed(1)}`;
+  }
+  d += `L${P[P.length - 1].x.toFixed(1)},${P[P.length - 1].y.toFixed(1)}`;
+  return d;
 }
 
 // curbă netedă prin punctele date de dagre (Catmull-Rom → Bézier)
@@ -178,7 +286,8 @@ function render() {
     tx.textContent = P.name;
     g.edges().forEach((ed) => {
       const L = g.edge(ed);
-      const path = el('path', { d: smooth(L.points.map((q) => ({ x: q.x + ox, y: q.y + oy }))), class: `ed k-${L.kind}`, 'marker-end': `url(#a-${L.kind})` }, gEdges);
+      const d = L.poly ? roundPath(L.poly.map((q) => ({ x: q.x + ox, y: q.y + oy }))) : orth(L.points, g.node(ed.v), g.node(ed.w), ox, oy);
+      const path = el('path', { d, class: `ed k-${L.kind}`, 'marker-end': `url(#a-${L.kind})` }, gEdges);
       let lab = null;
       if (L.lines.length) {
         lab = el('g', { class: `el k-${L.kind}`, transform: `translate(${L.x + ox},${L.y + oy})` }, gLabels);
@@ -194,13 +303,17 @@ function render() {
       items[key] = it;
       if (!it.portal) (itemsOf[it.id] = itemsOf[it.id] || []).push(key);
       const ng = el('g', { class: `nd t-${it.n.type}${it.portal ? ' portal' : ''}`, transform: `translate(${it.x},${it.y})`, 'data-id': it.id, tabindex: 0, role: 'button', 'aria-label': it.portal ? portalLabel(it) : it.n.t }, gNodes);
-      el('path', { d: shapePath(it.portal ? 'portal' : it.n.type, it.w, it.h), class: 'shape' }, ng);
+      el('path', { d: shapePath(it.portal ? 'portal' : it.n.type === 'faza' ? 'portal' : it.n.type, it.w, it.h), class: 'shape' }, ng);
       it.lines.forEach((l, k) => {
         const t = el('text', { x: 0, y: -it.lines.length * LH / 2 + LH / 2 + 4.5 + k * LH, 'text-anchor': 'middle' }, ng);
         t.textContent = l;
       });
       const tt = el('title', {}, ng); tt.textContent = it.portal ? it.targets.map((id) => byId[id].t).join(' · ') : it.n.t;
-      const act = () => { if (it.portal && it.targets.length > 1) fitBox(PHASES[it.phaseTo].box, { maxK: 1 }); else select(it.id, { fly: true }); };
+      const act = () => {
+        if (it.portal && it.targets.length > 1) fitBox(PHASES[it.phaseTo].box, { maxK: 1 });
+        else if (it.n.type === 'faza' && it.n.go.length === 1 && !state.path) select(it.n.go[0], { fly: true });
+        else select(it.id, { fly: true });
+      };
       ng.addEventListener('click', (ev) => { ev.stopPropagation(); if (!dragMoved) act(); });
       ng.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); act(); } });
       it.g = ng;
@@ -419,8 +532,11 @@ function renderPanel() {
   const where = PHASES[phaseOf[n.id]].name;
   const roles = n.roles.length === 3 ? '' : `<p class="roles">${n.roles.map((r) => `<span>${ROLES[r]}</span>`).join('')}</p>`;
   const fields = (n.f || []).map(([k, v]) => `<div class="fld"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
-  const nxt = outE[n.id].map((e) => edgeBtn(e, e.to)).join('');
-  const prv = inE[n.id].map((e) => edgeBtn(e, e.from, true)).join('');
+  const nxt = outE[n.id].filter((e, i, A) => A.findIndex((x) => x.to === e.to && x.label === e.label) === i).map((e) => edgeBtn(e, e.to)).join('')
+    + (n.type === 'faza' ? n.go.map((id) => `<li><button type="button" data-go="${id}" class="eb k-flow"><span class="eb-l">Mergi la ${esc(byId[id].t)}</span><span class="eb-t"><i class="g t-${byId[id].type}" aria-hidden="true">${TYPE_GLYPH[byId[id].type]}</i>${esc(PHASES[phaseOf[id]].name)}</span></button></li>`).join('') : '');
+  const prv = inE[n.id].filter((e, i, A) => A.findIndex((x) => x.from === e.from && x.label === e.label) === i).map((e) => edgeBtn(e, e.from, true)).join('')
+    + NODES.filter((m) => m.type === 'faza' && m.go.includes(n.id)).map((m) => `<li><button type="button" data-go="${m.id}" class="eb k-flow"><span class="eb-l">Din ${esc(PHASES[phaseOf[m.id]].name)}</span><span class="eb-t"><i class="g t-faza" aria-hidden="true">${TYPE_GLYPH.faza}</i>trimitere</span></button></li>`).join('');
+  const sum = n.type === 'faza' ? `Graficul continuă în altă fază. ${n.go.length > 1 ? 'Alege unde mergi:' : 'Mergi direct la etapa de mai jos.'}` : n.sum;
   panelBody.innerHTML = `${pathBar}
     <div class="ph">
       <div class="crumbs">${esc(where)}</div>
@@ -428,13 +544,13 @@ function renderPanel() {
       <h2>${esc(n.t)}</h2>
       ${roles}
     </div>
-    <p class="sum">${esc(n.sum)}</p>
+    <p class="sum">${esc(sum)}</p>
     ${n.warn ? `<p class="warn"><b>Atenție.</b> ${esc(n.warn)}</p>` : ''}
     ${fields ? `<dl class="fields">${fields}</dl>` : ''}
     ${n.calc ? calcHTML(n) : ''}
     ${nxt ? `<h3>Ce urmează</h3><ul class="edges">${nxt}</ul>` : ''}
     ${prv ? `<h3>Cum ajungi aici</h3><ul class="edges prev">${prv}</ul>` : ''}
-    <p class="refs"><span>Ghid ${n.ref.map((r) => `<a href="./#${refAnchor(r)}">${esc(r)}</a>`).join(' · ')}</span>${n.art ? `<span>${esc(n.art)}</span>` : ''}</p>`;
+    ${n.ref.length || n.art ? `<p class="refs">${n.ref.length ? `<span>Ghid ${n.ref.map((r) => `<a href="./#${refAnchor(r)}">${esc(r)}</a>`).join(' · ')}</span>` : ''}${n.art ? `<span>${esc(n.art)}</span>` : ''}</p>` : ''}`;
   panelBody.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => select(b.dataset.go, { fly: true })));
   $('#close-node').addEventListener('click', () => select(null));
   bindPathBar();
@@ -449,8 +565,8 @@ function edgeBtn(e, other, back) {
   const o = byId[other];
   const hidden = !visibleNode(o) ? ' data-hidden="1"' : '';
   return `<li><button type="button" data-go="${o.id}" class="eb k-${e.kind}"${hidden}>
-    <span class="eb-l">${esc(back ? o.s : e.label)}</span>
-    <span class="eb-t"><i class="g t-${o.type}" aria-hidden="true">${TYPE_GLYPH[o.type]}</i>${esc(back ? e.label : o.s)}</span>
+    <span class="eb-l">${esc(back ? o.t : (e.label ? e.label.replace(/\n/g, ' · ') : o.t))}</span>
+    <span class="eb-t"><i class="g t-${o.type}" aria-hidden="true">${TYPE_GLYPH[o.type]}</i>${esc(back ? (e.label ? e.label.replace(/\n/g, ' · ') : TYPES[o.type]) : (e.label ? o.t : TYPES[o.type]))}</span>
   </button></li>`;
 }
 
@@ -540,29 +656,30 @@ function bindCalc(n) {
 }
 
 // ───────────────────────── intro content
-const legend = Object.keys(TYPES).map((k) => `<li><i class="g t-${k}" aria-hidden="true">${TYPE_GLYPH[k]}</i><b>${TYPES[k]}</b>${{
-  moment: 'un moment din procedură sau din litigiu',
-  decizie: 'o întrebare la care răspunzi cu Da sau Nu',
-  raspuns: 'răspunsul la întrebare; din el pleacă variantele',
-  act: 'un act emis de autoritatea contractantă',
-  remediu: 'un act pe care îl depui: contestație, intervenție, plângere',
-  solutie: 'cum se poate termina o etapă',
-  risc: 'ce se întâmplă dacă ratezi un termen sau o condiție',
-  link: 'continuă în alt capitol al ghidului',
-}[k]}</li>`).join('');
+const LEGEND = [
+  ['moment', 'Etapă a procedurii'],
+  ['decizie', 'Întrebare'],
+  ['raspuns', 'Răspunsul la întrebare: Da / Nu'],
+  ['remediu', 'Acțiune, act procedural sau situație: cereri, contestații, soluții'],
+  ['act', 'Act sau conduită a autorității contractante'],
+  ['risc', 'Capcană: ce se întâmplă dacă ratezi un termen sau o condiție'],
+  ['faza', 'Trimitere la altă fază; clic pentru a merge acolo'],
+];
+const legend = LEGEND.map(([k, d]) => `<li><i class="g t-${k}" aria-hidden="true">${TYPE_GLYPH[k]}</i>${d}</li>`).join('');
 const INTRO = `
   <div class="ph"><div class="crumbs">Partea II · înainte de încheierea contractului</div><h2>Cum citești graficul?</h2></div>
   <p class="sum">Graficul reflectă o parte semnificativă dintre deciziile posibile într-un litigiu din domeniul achizițiilor publice, de la publicarea anunțului de participare și până la hotărârea definitivă a Curții de Apel asupra plângerii, revizuirii ori contestației în anulare. Alege orice etapă pentru a te familiariza cu variantele posibile. Căile procedurale ce pot fi urmate, actele procedurale care pot fi formulate, precum și capcanele ce pot apărea vor fi marcate distinctiv, fără ca restul graficului să dispară.</p>
   <dl class="fields axes">
     <div class="fld"><dt>De sus în jos</dt><dd>ordinea etapelor în procedură</dd></div>
     <div class="fld"><dt>Casetele</dt><dd>fazele: documentația, evaluarea, rezultatul, contestația la CNSC, decizia, plângerea, căile extraordinare, încheierea contractului</dd></div>
+    <div class="fld"><dt>Săgețile</dt><dd>continue: ce urmează; roșii: capcane; întrerupte: revenirea la o etapă anterioară</dd></div>
     <div class="fld"><dt>Navigarea</dt><dd>trage sau derulează pentru deplasare; Ctrl + rotița ori două degete pentru zoom</dd></div>
   </dl>
   <h3>Legenda</h3>
   <ul class="legend">${legend}</ul>
   <h3>Începe de aici</h3>
   <ul class="edges">
-    ${['p_anunt', 'p_rezultat', 'c_rez', 'k_obligatie'].map((id) => `<li><button type="button" class="eb" data-go="${id}"><span class="eb-l">${esc(byId[id].t)}</span><span class="eb-t"><i class="g t-${byId[id].type}" aria-hidden="true">${TYPE_GLYPH[byId[id].type]}</i>${TYPES[byId[id].type]}</span></button></li>`).join('')}
+    ${['p_anunt', 'p_eval', 'p_rezultat', 'c_cnsc', 'c_dec', 'pl', 'k_asteptare'].map((id) => `<li><button type="button" class="eb" data-go="${id}"><span class="eb-l">${esc(byId[id].t)}</span><span class="eb-t"><i class="g t-${byId[id].type}" aria-hidden="true">${TYPE_GLYPH[byId[id].type]}</i>${TYPES[byId[id].type]}</span></button></li>`).join('')}
   </ul>
   <h3>Abrevieri</h3>
   <p class="abbr"><b>AC</b> autoritatea contractantă · <b>CNSC</b> Consiliul Național de Soluționare a Contestațiilor · <b>SEAP</b> Sistemul electronic de achiziții publice · <b>L101</b> Legea nr. 101/2016 · <b>L98</b> Legea nr. 98/2016 · <b>pragul UE</b> pragurile valorice de la care se aplică regimul „peste prag”</p>
@@ -620,7 +737,14 @@ function start() {
   render();
   applyEmphasis();
   renderPanel();
-  fitBox(PHASES[0].box, { top: true, maxK: 1, minK: 0.5, animate: false });
+  // vederea inițială: prima etapă a Fazei 1, sus, centrată pe orizontală
+  {
+    const P = PHASES[0], it = items[itemsOf[P.nodes[0]][0]];
+    const { w } = vpSize();
+    const k = clampK(Math.max(0.55, Math.min(1, (w - 48) / P.box.w)));
+    Object.assign(view, { k, x: Math.min(24 - P.box.x * k, Math.max(w - 24 - (P.box.x + P.box.w) * k, w / 2 - it.x * k)), y: 24 - P.box.y * k });
+    applyView();
+  }
   const h0 = decodeURIComponent(location.hash.slice(1));
   if (byId[h0]) setTimeout(() => select(h0, { fly: true }), 200);
   else if (window.matchMedia('(max-width: 860px)').matches) $('#sheet-toggle').click();
