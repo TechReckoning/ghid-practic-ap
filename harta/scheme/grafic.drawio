@@ -1738,7 +1738,7 @@
             <mxPoint x="250" y="1430" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="Wus28K-s2TWJeYOZxngA-3" connectable="0" parent="xXk3xupiwG7RRHB1UIa5-1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];inheritText=1;defaultLabelBackgroundColor=gap;" value="&lt;span style=&quot;background-color: rgb(255, 229, 153);&quot;&gt;În situaţia în care se formulează&amp;nbsp;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;background-color: rgb(255, 229, 153);&quot;&gt;plângere împotriva deciziei Consiliului,&amp;nbsp;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;background-color: rgb(255, 229, 153);&quot;&gt;autoritatea contractantă are dreptul&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: rgb(255, 229, 153);&quot;&gt;de a suspenda ducerea ei la îndeplinire&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: rgb(255, 229, 153);&quot;&gt;şi/sau procedura de atribuire până la comunicarea&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: rgb(255, 229, 153);&quot;&gt;hotărârii de soluţionare a plângerii.&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="Wus28K-s2TWJeYOZxngA-3" connectable="0" parent="xXk3xupiwG7RRHB1UIa5-1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];inheritText=1;defaultLabelBackgroundColor=gap;" value="AC poate suspenda executarea până la comunicarea de către instanță a hotărârii privind plângerea" vertex="1">
           <mxGeometry relative="1" x="0.0613" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
@@ -1874,12 +1874,6 @@
         <mxCell id="RCijBV4myhvoMzWz-7CE-20" edge="1" parent="1" source="RCijBV4myhvoMzWz-7CE-5" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" target="RCijBV4myhvoMzWz-7CE-19" value="">
           <mxGeometry height="50" relative="1" width="50" x="-0.0104" as="geometry">
             <mxPoint x="200" y="442.16" as="sourcePoint" />
-            <mxPoint x="480" y="310" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="RCijBV4myhvoMzWz-7CE-21" edge="1" parent="1" source="RCijBV4myhvoMzWz-7CE-5" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;edgeStyle=orthogonalEdgeStyle;" target="RCijBV4myhvoMzWz-7CE-19" value="">
-          <mxGeometry height="50" relative="1" width="50" as="geometry">
-            <mxPoint x="430" y="360" as="sourcePoint" />
             <mxPoint x="480" y="310" as="targetPoint" />
           </mxGeometry>
         </mxCell>
@@ -2064,12 +2058,6 @@
             <mxGeometry height="80" width="80" x="1120" y="200" as="geometry" />
           </mxCell>
         </UserObject>
-        <mxCell id="q-OJ5_0yO8hC7BCAq3O2-1" edge="1" parent="1" source="RCijBV4myhvoMzWz-7CE-4" style="endArrow=classic;html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;" target="RCijBV4myhvoMzWz-7CE-5" value="">
-          <mxGeometry height="50" relative="1" width="50" x="-0.0104" as="geometry">
-            <mxPoint x="240" y="400" as="sourcePoint" />
-            <mxPoint x="440" y="680" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
         <UserObject label="Admiterea plângerii și modificarea deciziei CNSC" etapa="pl_mod" tip="etapă" id="RCijBV4myhvoMzWz-7CE-5">
           <mxCell parent="1" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1">
             <mxGeometry height="80" width="80" x="400" y="360" as="geometry" />

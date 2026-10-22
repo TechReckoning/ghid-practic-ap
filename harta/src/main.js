@@ -272,6 +272,9 @@ function render() {
     const m = el('marker', { id: 'a-' + k, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
     el('path', { d: 'M0 0L10 5L0 10z', class: 'ah k-' + k }, m);
   });
+  const gs = el('linearGradient', { id: 'g-solutie', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, class: 'g-sol-a' }, gs);
+  el('stop', { offset: 1, class: 'g-sol-b' }, gs);
   world = el('g', { id: 'world' }, svg);
   gPhases = el('g', { class: 'phases' }, world);
   gEdges = el('g', { class: 'edges' }, world);
@@ -660,7 +663,8 @@ const LEGEND = [
   ['moment', 'Etapă a procedurii'],
   ['decizie', 'Întrebare'],
   ['raspuns', 'Răspunsul la întrebare: Da / Nu'],
-  ['remediu', 'Acțiune, act procedural sau situație: cereri, contestații, soluții'],
+  ['remediu', 'Acțiune sau act procedural: cereri, contestații, plângeri'],
+  ['solutie', 'Soluție sau situație: soluțiile CNSC și ale instanței, împrejurări'],
   ['act', 'Act sau conduită a autorității contractante'],
   ['risc', 'Capcană: ce se întâmplă dacă ratezi un termen sau o condiție'],
   ['faza', 'Trimitere la altă fază; clic pentru a merge acolo'],

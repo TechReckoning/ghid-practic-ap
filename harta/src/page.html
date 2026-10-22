@@ -21,7 +21,7 @@
   --c-raspuns: #6C8EBF; --b-raspuns: #DAE8FC;
   --c-act: #666666; --b-act: #F5F5F5;
   --c-remediu: #D6B656; --b-remediu: #FFF2CC;
-  --c-solutie: #D6B656; --b-solutie: #FFF2CC;
+  --c-solutie: #D6B656; --b-solutie: #FFF2CC; --b2-solutie: #FFD966;
   --c-risc: #B85450; --b-risc: #F8CECC;
   --c-faza: #D79B00; --b-faza: #FFE6CC;
   --warn-bg: #FBEDEC;
@@ -35,7 +35,7 @@
     --bg: #0E1318; --surface: #141B22; --surface-2: #1A232C; --ink: #E1E7ED; --muted: #8B98A6; --line: #2A3540; --edge: #6E7C8A;
     --accent: #87A3FF; --accent-ink: #0E1318; --warn-bg: #2A1716; color-scheme: dark;
     --c-moment: #C2A3D1; --b-moment: #2E2436; --c-decizie: #9CCB80; --b-decizie: #1F2E1C; --c-raspuns: #8FB2E6; --b-raspuns: #1B2638;
-    --c-act: #A9B0B8; --b-act: #262B31; --c-remediu: #E3C56A; --b-remediu: #352D14; --c-solutie: #E3C56A; --b-solutie: #352D14;
+    --c-act: #A9B0B8; --b-act: #262B31; --c-remediu: #E3C56A; --b-remediu: #352D14; --c-solutie: #E3C56A; --b-solutie: #3A3116; --b2-solutie: #6B5719;
     --c-risc: #E58A85; --b-risc: #3A1F1E; --c-faza: #F0B240; --b-faza: #3A2A10;
   }
 }
@@ -43,7 +43,7 @@
   --bg: #0E1318; --surface: #141B22; --surface-2: #1A232C; --ink: #E1E7ED; --muted: #8B98A6; --line: #2A3540; --edge: #6E7C8A;
   --accent: #87A3FF; --accent-ink: #0E1318; --warn-bg: #2A1716; color-scheme: dark;
   --c-moment: #C2A3D1; --b-moment: #2E2436; --c-decizie: #9CCB80; --b-decizie: #1F2E1C; --c-raspuns: #8FB2E6; --b-raspuns: #1B2638;
-  --c-act: #A9B0B8; --b-act: #262B31; --c-remediu: #E3C56A; --b-remediu: #352D14; --c-solutie: #E3C56A; --b-solutie: #352D14;
+  --c-act: #A9B0B8; --b-act: #262B31; --c-remediu: #E3C56A; --b-remediu: #352D14; --c-solutie: #E3C56A; --b-solutie: #3A3116; --b2-solutie: #6B5719;
   --c-risc: #E58A85; --b-risc: #3A1F1E; --c-faza: #F0B240; --b-faza: #3A2A10;
 }
 html, body { height: 100%; }
@@ -93,6 +93,9 @@ body[data-view="list"] #list { display: block; }
 .phase[data-lv="dim"] { opacity: .45; }
 .nd { cursor: pointer; transition: opacity .15s; }
 .nd .shape { fill: var(--tb); stroke: var(--tc); stroke-width: 1.6; }
+/* Soluțiile și situațiile: galben mai închis, în degrade (ca în schemele lui Serban); actele procedurale rămân galben simplu. */
+.nd.t-solutie .shape { fill: url(#g-solutie); }
+.g-sol-a { stop-color: var(--b-solutie); } .g-sol-b { stop-color: var(--b2-solutie); }
 .nd text { font: 500 12.5px var(--font-ui); fill: var(--ink); pointer-events: none; }
 .nd.t-decizie text { font-weight: 600; }
 .nd.t-raspuns text { font-weight: 600; }
@@ -170,6 +173,7 @@ body[data-view="list"] #list { display: block; }
 .legend .g { grid-row: span 1; padding-top: 2px; }
 .legend li { display: block; }
 .legend li .g { display: inline-block; margin-right: 8px; width: 18px; height: 12px; vertical-align: -1px; border: 1.5px solid var(--tc); background: var(--tb); border-radius: 3px; font-size: 0; }
+.legend li .g.t-solutie { background: linear-gradient(var(--b-solutie), var(--b2-solutie)); }
 .abbr { margin: 0; font-size: 12.5px; color: var(--muted); }
 .abbr b { color: var(--ink); font-weight: 600; }
 .disc { margin: 0; font-size: 12px; color: var(--muted); padding-top: 10px; border-top: 1px solid var(--line); }
