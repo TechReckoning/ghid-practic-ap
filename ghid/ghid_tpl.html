@@ -78,6 +78,19 @@ a { color: var(--accent); }
 #toc .tw-btn[aria-expanded="true"] { transform: rotate(90deg); }
 #toc .tw-sp { flex: none; width: 24px; }
 .noresult { font-size: 13px; color: var(--muted); padding: 4px 8px; }
+/* căutarea în text: rezultatele stau deasupra cuprinsului filtrat */
+#hits { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+#hits h3 { font: 500 10.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 2px 0 6px; }
+#hits ol { list-style: none; margin: 0; padding: 0; }
+#hits a { display: block; padding: 6px 8px; border-radius: 4px; color: var(--ink); text-decoration: none; }
+#hits a:hover, #hits a:focus-visible { background: var(--surface-2); }
+#hits .hs { display: block; font-size: 12px; color: var(--muted); }
+#hits .hs .n { font: 500 11px var(--font-mono); margin-right: 5px; }
+#hits .hx { display: block; font-size: 13px; line-height: 1.4; margin-top: 2px; }
+#hits mark, ::highlight(cauta) { background: color-mix(in srgb, var(--accent) 24%, transparent); color: inherit; }
+#hits .more { font-size: 12px; color: var(--muted); padding: 4px 8px; margin: 0; }
+.hit-flash { animation: hitflash 2.4s ease-out; border-radius: 4px; }
+@keyframes hitflash { from { background: color-mix(in srgb, var(--accent) 18%, transparent); } to { background: transparent; } }
 
 /* article */
 main { min-width: 0; padding: 28px 16px 120px; }
@@ -148,8 +161,9 @@ td ul, td ol { margin: 0; padding-left: 1.2em; }
 <div class="layout">
   <aside id="side" aria-label="Cuprinsul ghidului">
     <div class="side-h"><h2>Cuprins</h2><button type="button" id="toc-close">Închide</button></div>
-    <input type="search" id="q" placeholder="Caută o secțiune (ex. cauțiune)" aria-label="Caută în cuprins">
-    <nav id="toc"></nav>
+    <input type="search" id="q" placeholder="Caută în ghid (ex. cauțiune)" aria-label="Caută în textul ghidului">
+    <div id="hits" hidden aria-live="polite"></div>
+    <nav id="toc" aria-label="Cuprins"></nav>
   </aside>
   <div id="scrim" hidden></div>
   <main>
@@ -203,6 +217,17 @@ td ul, td ol { margin: 0; padding-left: 1.2em; }
       return;
     }
     if (e.target.closest('a')) closeToc();
+  });
+  // index pentru căutarea în text (înainte de butoanele „Vezi pe grafic”, ca să nu intre în text)
+  function fold(t) { var o = ''; for (var i = 0; i < t.length; i++) o += t[i].normalize('NFD')[0].toLowerCase(); return o; }
+  var tocIds = {}, tocTitle = {};
+  TOC.forEach(function (h) { tocIds[h.id] = 1; tocTitle[h.id] = h.t; });
+  var BLOCKS = [], sec = null, SEL = 'h1,h2,h3,h4,h5,h6,p,li,td,th,figcaption';
+  document.querySelectorAll('main article ' + SEL.split(',').join(',main article ')).forEach(function (el) {
+    if (/^H\d$/.test(el.tagName)) { if (tocIds[el.id]) sec = el.id; return; }
+    if (el.querySelector('p,li,td,th') || el.closest('svg')) return;
+    var t = el.textContent.replace(/\s+/g, ' ').trim();
+    if (t.length > 2) BLOCKS.push({ el: el, sec: sec, t: t, f: fold(t) });
   });
   // map links on headings
   Object.keys(MAP).forEach(function (sec) {
@@ -265,6 +290,49 @@ td ul, td ol { margin: 0; padding-left: 1.2em; }
       if (desc) { var ul = li.querySelector(':scope > ul'); if (ul) ul.hidden = false; }
     });
     tocEl.querySelector('.noresult').hidden = !v || any;
+    textSearch(q.value.trim());
+  });
+  var hitsEl = document.getElementById('hits'), found = [];
+  function marked(t, words) {
+    var f = fold(t), spans = [];
+    words.forEach(function (w) { var i = f.indexOf(w); while (i >= 0) { spans.push([i, i + w.length]); i = f.indexOf(w, i + w.length); } });
+    spans.sort(function (a, b) { return a[0] - b[0]; });
+    var out = '', at = 0;
+    spans.forEach(function (s) { if (s[0] < at) return; out += esc(t.slice(at, s[0])) + '<mark>' + esc(t.slice(s[0], s[1])) + '</mark>'; at = s[1]; });
+    return out + esc(t.slice(at));
+  }
+  function textSearch(raw) {
+    var words = fold(raw).split(/\s+/).filter(function (w) { return w.length > 1; });
+    if (!words.length) { hitsEl.hidden = true; hitsEl.innerHTML = ''; return; }
+    found = BLOCKS.filter(function (b) { return words.every(function (w) { return b.f.indexOf(w) >= 0; }); });
+    var MAX = 40, html = '<h3>În text · ' + (found.length ? found.length + (found.length === 1 ? ' rezultat' : ' rezultate') : 'niciun rezultat') + '</h3><ol>';
+    found.slice(0, MAX).forEach(function (b, i) {
+      var k = b.f.indexOf(words[0]), a = Math.max(0, k - 45), z = Math.min(b.t.length, k + words[0].length + 110);
+      if (a > 0) a = Math.min(k, b.t.indexOf(' ', a) + 1); if (z < b.t.length) z = Math.max(k + words[0].length, b.t.lastIndexOf(' ', z));
+      var snip = (a > 0 ? '…' : '') + b.t.slice(a, z) + (z < b.t.length ? '…' : '');
+      html += '<li><a href="#' + (b.sec || '') + '" data-hit="' + i + '"><span class="hs">' + (b.sec ? split(tocTitle[b.sec]) : 'Introducere') + '</span><span class="hx">' + marked(snip, words) + '</span></a></li>';
+    });
+    html += '</ol>' + (found.length > MAX ? '<p class="more">Primele ' + MAX + ' din ' + found.length + '. Adăugați un cuvânt pentru a restrânge căutarea.</p>' : '');
+    hitsEl.innerHTML = html; hitsEl.hidden = false;
+    hitsEl.dataset.words = words.join(' ');
+  }
+  hitsEl.addEventListener('click', function (e) {
+    var a = e.target.closest('a[data-hit]'); if (!a) return;
+    e.preventDefault();
+    var b = found[+a.dataset.hit], words = hitsEl.dataset.words.split(' ');
+    closeToc();
+    b.el.scrollIntoView({ block: 'center' });
+    b.el.classList.remove('hit-flash'); void b.el.offsetWidth; b.el.classList.add('hit-flash');
+    // evidențiază cuvintele găsite în paragraf (unde browserul știe CSS Highlight)
+    if (window.CSS && CSS.highlights && window.Highlight) {
+      var ranges = [], walker = document.createTreeWalker(b.el, NodeFilter.SHOW_TEXT);
+      for (var n = walker.nextNode(); n; n = walker.nextNode()) {
+        var f = fold(n.nodeValue);
+        words.forEach(function (w) { var i = f.indexOf(w); while (i >= 0) { var r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + w.length); ranges.push(r); i = f.indexOf(w, i + w.length); } });
+      }
+      CSS.highlights.set('cauta', new Highlight(...ranges));
+    }
+    if (b.sec) history.replaceState(null, '', '#' + b.sec);
   });
   // drawer
   var openBtn = document.getElementById('toc-open'), scrim = document.getElementById('scrim');

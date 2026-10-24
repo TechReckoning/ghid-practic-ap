@@ -721,6 +721,85 @@ $('#zoom-in').addEventListener('click', () => { const { w, h } = vpSize(); zoomA
 $('#zoom-out').addEventListener('click', () => { const { w, h } = vpSize(); zoomAt(0.8, w / 2, h / 2); });
 $('#fit').addEventListener('click', () => fitBox(bounds));
 $('#phase-go').addEventListener('change', (e) => { const P = PHASES.find((p) => p.id === e.target.value); if (P) fitBox(P.box, { maxK: 1 }); e.target.value = ''; });
+
+// ───────────────────────── căutarea în grafic (titlu, etichetă, rezumat, fișă, articole)
+{
+  // fără diacritice și litere mici, cu aceeași lungime ca textul inițial (pentru evidențiere)
+  const fold = (t) => Array.from(String(t), (c) => c.normalize('NFD')[0].toLowerCase()).join('');
+  const INDEX = NODES.filter((n) => n.type !== 'raspuns' && n.type !== 'faza').map((n) => ({
+    n,
+    fields: [[n.t, 0], [n.s || '', 1], [n.sum || '', 2], ...(n.f || []).map(([k, v]) => [k + ': ' + v, 3]), [n.warn || '', 3], [n.art || '', 3]].filter(([t]) => t),
+  }));
+  const input = $('#find'), res = $('#find-res');
+  let hits = [], cur = -1;
+  function mark(text, words) {
+    const f = fold(text), spans = [];
+    words.forEach((w) => { let i = f.indexOf(w); while (i >= 0) { spans.push([i, i + w.length]); i = f.indexOf(w, i + w.length); } });
+    spans.sort((a, b) => a[0] - b[0]);
+    let out = '', at = 0;
+    spans.forEach(([a, b]) => { if (a < at) return; out += esc(text.slice(at, a)) + '<mark>' + esc(text.slice(a, b)) + '</mark>'; at = b; });
+    return out + esc(text.slice(at));
+  }
+  function snippet(text, w) {
+    const i = fold(text).indexOf(w);
+    let a = Math.max(0, i - 50), b = Math.min(text.length, i + w.length + 90);
+    if (a > 0) a = Math.min(i, text.indexOf(' ', a) + 1);
+    if (b < text.length) b = Math.max(i + w.length, text.lastIndexOf(' ', b));
+    return (a > 0 ? '…' : '') + text.slice(a, b).trim() + (b < text.length ? '…' : '');
+  }
+  function search() {
+    const words = fold(input.value.trim()).split(/\s+/).filter((w) => w.length > 1);
+    hits = [];
+    if (words.length) {
+      INDEX.forEach(({ n, fields }) => {
+        const all = fold(fields.map(([t]) => t).join(' '));
+        if (!words.every((w) => all.includes(w))) return;
+        // scor: unde apare primul cuvânt (titlul contează cel mai mult)
+        const best = fields.find(([t]) => fold(t).includes(words[0])) || fields[0];
+        const score = best[1] * 10 + (fold(n.t).startsWith(words[0]) ? 0 : 1);
+        hits.push({ n, score, body: best[1] >= 2 ? best[0] : '' });
+      });
+      hits.sort((a, b) => a.score - b.score);
+    }
+    cur = hits.length ? 0 : -1;
+    draw(words);
+  }
+  function draw(words) {
+    if (!input.value.trim()) { res.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
+    res.innerHTML = hits.length
+      ? hits.slice(0, 30).map((h, i) => `<li role="option" id="fr-${i}" data-id="${h.n.id}" aria-selected="${i === cur}">
+          <span class="fr-t">${mark(h.n.t, words)}</span>
+          <span class="fr-m">${esc(TYPES[h.n.type])} · ${esc(PHASES[phaseOf[h.n.id]].name)}</span>
+          ${h.body ? `<span class="fr-s">${mark(snippet(h.body, words[0]), words)}</span>` : ''}</li>`).join('')
+      : `<li class="fr-none">Nicio etapă nu conține „${esc(input.value.trim())}”.</li>`;
+    res.hidden = false; input.setAttribute('aria-expanded', 'true');
+    if (cur >= 0) input.setAttribute('aria-activedescendant', 'fr-' + cur); else input.removeAttribute('aria-activedescendant');
+  }
+  function choose(id) {
+    res.hidden = true; input.setAttribute('aria-expanded', 'false'); input.blur();
+    if (state.view === 'list') { $('#view-graf').click(); }
+    if (byId[id].type === 'risc' && !state.showRisk) $('#t-risk').click(); // capcanele ascunse se reafișează
+    select(id, { fly: true });
+  }
+  input.addEventListener('input', search);
+  input.addEventListener('focus', () => { if (input.value.trim()) search(); });
+  input.addEventListener('keydown', (e) => {
+    const n = Math.min(hits.length, 30);
+    if (e.key === 'ArrowDown' && n) { cur = (cur + 1) % n; e.preventDefault(); }
+    else if (e.key === 'ArrowUp' && n) { cur = (cur - 1 + n) % n; e.preventDefault(); }
+    else if (e.key === 'Enter' && cur >= 0) { e.preventDefault(); choose(hits[cur].n.id); return; }
+    else if (e.key === 'Escape') { input.value = ''; res.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
+    else return;
+    res.querySelectorAll('li[role="option"]').forEach((li, i) => li.setAttribute('aria-selected', String(i === cur)));
+    input.setAttribute('aria-activedescendant', 'fr-' + cur);
+    res.querySelector(`#fr-${cur}`)?.scrollIntoView({ block: 'nearest' });
+  });
+  res.addEventListener('mousedown', (e) => e.preventDefault()); // păstrează focusul până la clic
+  res.addEventListener('click', (e) => { const li = e.target.closest('li[data-id]'); if (li) choose(li.dataset.id); });
+  input.addEventListener('blur', () => setTimeout(() => { res.hidden = true; input.setAttribute('aria-expanded', 'false'); }, 120));
+  // tragerea graficului nu trebuie să pornească din bara de unelte
+  $('.find').addEventListener('pointerdown', (e) => e.stopPropagation());
+}
 $('#sheet-toggle').addEventListener('click', () => {
   const c = panel.classList.toggle('collapsed');
   $('#sheet-toggle').setAttribute('aria-expanded', String(!c));
