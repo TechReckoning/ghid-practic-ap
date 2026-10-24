@@ -757,4 +757,9 @@ let started = false;
 const go = () => { if (!started) { started = true; start(); } };
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(go);
 setTimeout(go, 1500);
+// legătură spre o etapă (#id) când graficul e deja deschis în aceeași filă
+window.addEventListener('hashchange', () => {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (started && byId[h]) select(h, { fly: true });
+});
 window.__harta = { select, state, fitBox, view };
